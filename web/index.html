@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ollama Chat</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#171a21; --border:#262b36; --text:#e8eaf0; --muted:#8b93a7;
+  --accent:#d97757; --user:#2b3242; --assistant:#1c2029;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; flex-direction:column; height:100dvh;}
+header{display:flex; align-items:center; gap:8px; padding:12px 16px; padding-top:max(12px, env(safe-area-inset-top)); background:var(--panel); border-bottom:1px solid var(--border);}
+header h1{font-size:17px; font-weight:600; flex:1;}
+.icon-btn{background:none;border:none;color:var(--muted);font-size:18px;padding:6px;border-radius:8px;cursor:pointer;}
+.icon-btn:active{background:var(--border);}
+#messages{flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px;}
+.msg{max-width:85%; padding:10px 14px; border-radius:14px; white-space:pre-wrap; word-wrap:break-word; line-height:1.5; font-size:15px;}
+.msg.user{align-self:flex-end; background:var(--user); border-bottom-right-radius:4px;}
+.msg.assistant{align-self:flex-start; background:var(--assistant); border:1px solid var(--border); border-bottom-left-radius:4px;}
+.msg .role{font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px;}
+.msg code{background:#0b0d12; padding:1px 5px; border-radius:4px; font-family:ui-monospace,Menlo,monospace; font-size:13px;}
+.msg pre{background:#0b0d12; padding:10px; border-radius:8px; overflow-x:auto; margin:8px 0;}
+.msg pre code{background:none; padding:0;}
+#empty{margin:auto; text-align:center; color:var(--muted); font-size:14px;}
+footer{padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--border); display:flex; gap:8px; align-items:flex-end;}
+#input{flex:1; resize:none; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:16px; font-family:inherit; max-height:120px;}
+#input:focus{outline:none; border-color:var(--accent);}
+#sendBtn{background:var(--accent); color:#fff; border:none; border-radius:12px; padding:10px 16px; font-size:15px; font-weight:600; cursor:pointer;}
+#sendBtn:disabled{opacity:.5;}
+#settings{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:10;}
+#settings.open{display:flex;}
+.sheet{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:20px; width:min(90vw,360px);}
+.sheet h2{font-size:16px; margin-bottom:14px;}
+.sheet label{display:block; font-size:13px; color:var(--muted); margin:10px 0 4px;}
+.sheet input{width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:9px 10px; font-size:15px;}
+.sheet .row{display:flex; gap:8px; margin-top:16px;}
+.sheet button{flex:1; padding:10px; border-radius:10px; border:none; font-size:14px; font-weight:600; cursor:pointer;}
+#saveBtn{background:var(--accent); color:#fff;}
+#cancelBtn{background:var(--border); color:var(--text);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ollama Chat</h1>
+  <button class="icon-btn" id="newBtn" title="New chat">&#10010;</button>
+  <button class="icon-btn" id="settingsBtn" title="Settings">&#9881;</button>
+</header>
+<div id="messages"><div id="empty">Start a conversation &#128075;</div></div>
+<footer>
+  <textarea id="input" rows="1" placeholder="Message&#8230;"></textarea>
+  <button id="sendBtn">Send</button>
+</footer>
+<div id="settings">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <label>Ollama server URL</label>
+    <input id="serverUrl" placeholder="http://192.168.1.192:11434">
+    <label>Model</label>
+    <input id="model" placeholder="qwen3.8-vision">
+    <div class="row">
+      <button id="cancelBtn">Cancel</button>
+      <button id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+
+const settings = {
+  server: localStorage.getItem('oc_server') || 'http://192.168.1.192:11434',
+  model:  localStorage.getItem('oc_model')  || 'qwen3.8-vision',
+};
+let messages = JSON.parse(localStorage.getItem('oc_messages') || '[]');
+let controller = null;
+
+function save(){ localStorage.setItem('oc_messages', JSON.stringify(messages)); }
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function render(text){
+  let html = esc(text);
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => '<pre><code>' + code + '</code></pre>');
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  return html;
+}
+
+function scroll(){ const box = $('messages'); box.scrollTop = box.scrollHeight; }
+
+function renderAll(){
+  const box = $('messages');
+  box.innerHTML = messages.length ? '' : '<div id="empty">Start a conversation &#128075;</div>';
+  for(const m of messages){
+    const div = document.createElement('div');
+    div.className = 'msg ' + m.role;
+    const label = m.role === 'user' ? 'You' : settings.model;
+    div.innerHTML = '<div class="role"></div><div class="content"></div>';
+    div.querySelector('.role').textContent = label;
+    div.querySelector('.content').innerHTML = render(m.content);
+    box.appendChild(div);
+  }
+  scroll();
+}
+
+function addAssistantBubble(){
+  const box = $('messages');
+  const empty = $('empty');
+  if(empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'msg assistant';
+  div.innerHTML = '<div class="role"></div><div class="content"></div>';
+  div.querySelector('.role').textContent = settings.model;
+  box.appendChild(div);
+  scroll();
+  return div;
+}
+
+function setSending(on){
+  $('sendBtn').textContent = on ? 'Stop' : 'Send';
+  $('sendBtn').disabled = false;
+  $('input').disabled = on;
+}
+
+async function send(){
+  const text = $('input').value.trim();
+  if(!text || controller) return;
+  $('input').value = ''; autoGrow();
+  messages.push({role:'user', content:text}); save(); renderAll();
+
+  const el = addAssistantBubble();
+  setSending(true);
+  controller = new AbortController();
+  let full = '';
+  try{
+    const res = await fetch(settings.server.replace(/\/+$/,'') + '/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model: settings.model, messages, stream:true}),
+      signal: controller.signal,
+    });
+    if(!res.ok){
+      const body = await res.text();
+      throw new Error('HTTP ' + res.status + (body ? ' — ' + body.slice(0,200) : ''));
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      let i;
+      while((i = buf.indexOf('\n')) >= 0){
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if(!line) continue;
+        const j = JSON.parse(line);
+        if(j.error) throw new Error(j.error);
+        if(j.message && j.message.content){
+          full += j.message.content;
+          el.querySelector('.content').innerHTML = render(full);
+          scroll();
+        }
+        if(j.done) break;
+      }
+    }
+    messages.push({role:'assistant', content: full}); save();
+  }catch(err){
+    if(err.name === 'AbortError'){
+      if(full){ messages.push({role:'assistant', content: full}); save(); }
+    } else {
+      el.querySelector('.content').innerHTML =
+        '<span style="color:#e57373">&#9888;&#65039; ' + esc(err.message) + '</span>';
+    }
+  }finally{
+    controller = null;
+    setSending(false);
+    renderAll();
+  }
+}
+
+function autoGrow(){
+  const t = $('input');
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 120) + 'px';
+}
+
+$('sendBtn').addEventListener('click', () => {
+  if(controller){ controller.abort(); } else { send(); }
+});
+$('input').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+$('input').addEventListener('input', autoGrow);
+
+$('newBtn').addEventListener('click', () => {
+  if(messages.length && !confirm('Start a new chat? Current conversation will be cleared.')) return;
+  messages = []; save(); renderAll();
+});
+
+$('settingsBtn').addEventListener('click', () => {
+  $('serverUrl').value = settings.server;
+  $('model').value = settings.model;
+  $('settings').classList.add('open');
+});
+$('cancelBtn').addEventListener('click', () => $('settings').classList.remove('open'));
+$('saveBtn').addEventListener('click', () => {
+  settings.server = $('serverUrl').value.trim() || settings.server;
+  settings.model  = $('model').value.trim()  || settings.model;
+  localStorage.setItem('oc_server', settings.server);
+  localStorage.setItem('oc_model', settings.model);
+  $('settings').classList.remove('open');
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>
