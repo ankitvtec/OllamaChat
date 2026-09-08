@@ -7,9 +7,9 @@
 <style>
 :root{
   --bg:#F7F7FB; --side:#F1F0F8; --text:#2A2440; --muted:#8B87A0;
-  --accent:#5536d1; --accent-dark:#4328ad; --border:#E4E2F0;
+  --accent:#555fb8; --accent-dark:#454d96; --border:#E4E2F0;
   --user:#EEEBFA; --code:#F4F3FA; --white:#FFFFFF;
-  --think:#5536d1; --think-bg:#F1EEFC; --think-border:#D9D2F2;
+  --think:#555fb8; --think-bg:#EEF0FA; --think-border:#D5D9EE;
   --green:#3FA35C; --green-bg:#EAF6EE;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -20,7 +20,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
 .login-card{background:var(--white);border:1px solid var(--border);border-radius:18px;padding:36px 32px;width:min(92vw,400px);box-shadow:0 8px 32px rgba(61,57,41,.08);}
 .login-card .logo{text-align:center;margin-bottom:12px;}
-.logo-img{display:block;height:34px;width:auto;max-width:220px;}
+.logo-img{display:block;height:48px;width:auto;max-width:280px;}
 .login-card h1{text-align:center;font-family:Georgia,serif;font-size:26px;font-weight:500;margin-bottom:4px;}
 .login-card .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px;}
 .login-card label{display:block;font-size:13px;color:var(--muted);margin:14px 0 4px;}
@@ -44,11 +44,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #app{display:flex;height:100dvh;overflow:hidden;}
 
 /* ---------- Sidebar ---------- */
-#sidebar{width:264px;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+#sidebar{width:264px;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .22s ease;overflow:hidden;}
 .side-top{padding:14px 12px 8px;}
 .brand{display:flex;align-items:center;gap:8px;padding:2px 8px 12px;font-weight:600;font-size:15px;}
 .brand .logo{display:flex;align-items:center;}
-.brand .logo-img{height:22px;width:auto;}
+.brand .logo-img{height:30px;width:auto;}
 .new-chat{width:100%;display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;}
 .new-chat:hover{background:#fff;border-color:#d8d4c8;}
 #convList{flex:1;overflow-y:auto;padding:6px 8px;}
@@ -69,6 +69,12 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 #topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));flex-wrap:wrap;}
 #serverBadge{font-size:11px;color:var(--muted);background:#ECEAE1;padding:3px 9px;border-radius:20px;}
 #menuBtn{display:none;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px;}
+#collapseBtn{display:none;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;}
+#collapseBtn:hover{background:#ECEAE1;color:var(--text);}
+@media (min-width:769px){
+  #collapseBtn{display:block;}
+  #sidebar.collapsed{width:0;min-width:0;border-right:none;}
+}
 #modelLabel{font-size:13.5px;color:var(--muted);font-weight:500;}
 #modelLabel b{color:var(--text);font-weight:600;}
 #tokenInfo{font-size:11.5px;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:6px;}
@@ -88,7 +94,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 /* ---------- Welcome ---------- */
 #welcome{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 20px 40px;}
 #welcome .logo{margin-bottom:16px;}
-#welcome .logo-img{height:48px;width:auto;max-width:280px;}
+#welcome .logo-img{height:64px;width:auto;max-width:340px;}
 #welcome h1{font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:500;margin-bottom:6px;}
 #welcome p{color:var(--muted);margin-bottom:28px;}
 #suggGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:560px;}
@@ -172,7 +178,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 #composer{max-width:780px;margin:0 auto;background:var(--white);border:1px solid var(--border);border-radius:18px;padding:8px 8px 8px 6px;display:flex;align-items:flex-end;gap:6px;box-shadow:0 2px 10px rgba(61,57,41,.05);}
 #composer:focus-within{border-color:var(--accent);}
 #composer.busy{border-color:var(--accent);animation:composerGlow 1.6s ease-in-out infinite;}
-@keyframes composerGlow{0%,100%{box-shadow:0 2px 10px rgba(85,54,209,.10);}50%{box-shadow:0 2px 18px rgba(85,54,209,.30);}}
+@keyframes composerGlow{0%,100%{box-shadow:0 2px 10px rgba(85,95,184,.10);}50%{box-shadow:0 2px 18px rgba(85,95,184,.30);}}
 #sendBtn.busy{background:var(--accent-dark);animation:sendPulse 1.2s ease-in-out infinite;}
 @keyframes sendPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
 #attachBtn{background:none;border:none;font-size:19px;cursor:pointer;padding:8px;border-radius:10px;color:var(--muted);}
@@ -269,6 +275,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
   <main>
     <header id="topbar">
       <button id="menuBtn">&#9776;</button>
+      <button id="collapseBtn" title="Toggle sidebar">&#171;</button>
       <div id="modelLabel"></div>
       <div id="tokenInfo"></div>
       <div id="serverBadge" style="display:none">&#128274; Office server</div>
@@ -506,7 +513,7 @@ const BASE_PROMPT = "You are VTEC AI, a precise, capable expert assistant. Work 
 const SKILLS = {
   general: { label: 'General', system: '', tools: true },
   research: { label: 'Web Research',
-    system: "You are an efficient research assistant with live web access. Work like a professional researcher: run at most 1-2 web_search calls, then fetch at most 3-5 of the most relevant, authoritative pages with web_fetch (the app enforces a 5-page limit per request). If you need several pages, request them all in one turn so they load together. Stop researching as soon as you have enough to answer well - never fetch every result.\n\nCRITICAL: You MUST always finish with a complete, well-structured answer to the user's question. Never stop after an intro sentence, and never end your turn right after tool calls. Even if some sources fail to load or return errors, synthesize a full answer from whatever information you did gather (search snippets, summaries, and any successful fetches) combined with your own knowledge, and briefly note which parts come from live sources vs. your background knowledge. Cite your sources as plain URLs at the end.", tools: true },
+    system: "You are an efficient research assistant with live web access. Work like a professional researcher: run at most 1-2 web_search calls, then fetch at most 3-5 of the most relevant, authoritative pages with web_fetch (the app enforces a 5-page limit per request). Prefer diverse, authoritative sources - official documentation, reputable news outlets, vendor sites, and specialist forums - not just Wikipedia. If you need several pages, request them all in one turn so they load together. Stop researching as soon as you have enough to answer well - never fetch every result.\n\nCRITICAL: You MUST always finish with a complete, well-structured answer to the user's question. Never stop after an intro sentence, and never end your turn right after tool calls. Even if some sources fail to load or return errors, synthesize a full answer from whatever information you did gather (search snippets, summaries, and any successful fetches) combined with your own knowledge, and briefly note which parts come from live sources vs. your background knowledge. Cite your sources as plain URLs at the end.", tools: true },
   code: { label: 'Code Expert',
     system: 'You are a senior software engineer. Write clean, idiomatic, well-commented code. Explain key decisions briefly and point out edge cases, pitfalls, and how to test the result. When you write JavaScript code, keep it self-contained so it can be run directly in a browser console.', tools: true },
   writing: { label: 'Writing',
@@ -517,7 +524,7 @@ const SKILLS = {
 
 const TOOLS = [
   { type: 'function', function: { name: 'web_search',
-    description: 'Search the web for current information. Returns up to 5 results with URLs, a summary, and the full text of the top article. Use at most 1-2 searches per question.',
+    description: 'Search the live web for current information. Returns up to 10 diverse real-world results (news sites, official docs, vendor pages, forums, etc.) with titles, full URLs, and snippets, plus a direct answer when available. Use at most 1-2 searches per question, then fetch the most relevant pages with web_fetch.',
     parameters: { type: 'object', properties: { query: { type: 'string', description: 'The search query' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'web_fetch',
     description: 'Fetch a web page by URL and return its main text content. At most 5 pages can be fetched per request - pick the most important sources and request them together in one turn.',
@@ -825,46 +832,204 @@ function setStatus(text, show) {
 }
 
 /* ================= Tools (client-side execution) ================= */
-async function webSearch(q) {
-  let out = '';
-  // 1) Wikipedia search (reliable, substantial) — primary source
-  let wikiResults = [];
-  try {
-    const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&srlimit=5&format=json&origin=*', { signal: AbortSignal.timeout(10000) });
-    const j = await r.json();
-    wikiResults = (j.query && j.query.search) || [];
-  } catch (e) {}
-  if (wikiResults.length) {
-    out += 'Wikipedia results:\n' + wikiResults.slice(0, 5).map((s, i) =>
-      (i + 1) + '. ' + s.title + ' \u2014 ' + (s.snippet || '').replace(/<[^>]+>/g, '') +
-      ' (https://en.wikipedia.org/wiki/' + encodeURIComponent(s.title.replace(/ /g, '_')) + ')').join('\n');
+const CORS_PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)
+];
+
+async function fetchViaProxies(url, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
+  let lastErr = null;
+  for (const make of CORS_PROXIES) {
+    try {
+      const r = await fetch(make(url), { signal: AbortSignal.timeout(timeoutMs) });
+      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+      const text = await r.text();
+      if (text && text.trim()) return text;
+      lastErr = new Error('empty response');
+    } catch (e) { lastErr = e; }
   }
-  // 2) DuckDuckGo Instant Answer for a direct answer / related topics (secondary enrichment)
+  throw lastErr || new Error('All fetch methods failed');
+}
+
+// Jina Reader: fetches server-side and returns clean Markdown. No CORS issues, free without an API key.
+async function fetchViaJina(url, timeoutMs) {
+  timeoutMs = timeoutMs || 20000;
+  const r = await fetch('https://r.jina.ai/' + url, { signal: AbortSignal.timeout(timeoutMs), headers: { 'Accept': 'text/markdown, */*' } });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const text = await r.text();
+  if (!text || !text.trim()) throw new Error('empty response');
+  return text;
+}
+
+function parseDDGHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const results = [];
+  doc.querySelectorAll('.result').forEach(it => {
+    const a = it.querySelector('.result__a');
+    const sn = it.querySelector('.result__snippet');
+    if (!a) return;
+    let href = a.getAttribute('href') || '';
+    try {
+      if (href.includes('uddg=')) {
+        const m = href.match(/[?&]uddg=([^&]+)/);
+        if (m) href = decodeURIComponent(m[1]);
+      }
+      if (href.startsWith('//')) href = 'https:' + href;
+    } catch (e) {}
+    const title = (a.textContent || '').trim();
+    const snippet = sn ? (sn.textContent || '').trim() : '';
+    if (title && href && href.startsWith('http')) results.push({ title, url: href, snippet });
+  });
+  return results;
+}
+
+function parseBingHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const results = [];
+  doc.querySelectorAll('.b_algo').forEach(it => {
+    const a = it.querySelector('h2 a');
+    const sn = it.querySelector('.b_caption p, .b_caption');
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    const title = (a.textContent || '').trim();
+    const snippet = sn ? (sn.textContent || '').trim() : '';
+    if (title && href && href.startsWith('http')) results.push({ title, url: href, snippet });
+  });
+  return results;
+}
+
+function decodeDDGRedirect(href) {
+  try {
+    if (href.includes('uddg=')) {
+      const m = href.match(/[?&]uddg=([^&]+)/);
+      if (m) return decodeURIComponent(m[1]);
+    }
+    if (href.startsWith('//')) return 'https:' + href;
+  } catch (e) {}
+  return href;
+}
+
+function decodeBingRedirect(href) {
+  try {
+    const m = href.match(/[?&]u=(a1[a-zA-Z0-9+/=]+)/);
+    if (m) {
+      let b64 = m[1].slice(2);
+      while (b64.length % 4) b64 += '=';
+      const decoded = atob(b64);
+      if (decoded.startsWith('http')) return decoded;
+    }
+  } catch (e) {}
+  return href;
+}
+
+function parseDDGMarkdown(md) {
+  const results = [];
+  const blocks = md.split(/\n## \[/).slice(1);
+  for (const block of blocks) {
+    const head = block.match(/^([^\]]+)\]\((https?:[^)]+)\)/);
+    if (!head) continue;
+    const title = head[1].replace(/\*\*/g, '').trim();
+    const url = decodeDDGRedirect(head[2]);
+    let snippet = '';
+    for (const line of block.split('\n')) {
+      const t = line.trim();
+      if (t.startsWith('[') && !t.startsWith('[!')) {
+        const sm = t.match(/^\[([^\]]+)\]\(https?:[^)]+\)/);
+        if (sm) { snippet = sm[1].replace(/\*\*/g, '').trim(); break; }
+      }
+    }
+    if (title && url && url.startsWith('http')) results.push({ title, url, snippet });
+  }
+  return results;
+}
+
+function parseBingMarkdown(md) {
+  const results = [];
+  const blocks = md.split(/\n\d+\.\s+## \[/).slice(1);
+  for (const block of blocks) {
+    const head = block.match(/^([^\]]+)\]\((https?:[^)]+)\)/);
+    if (!head) continue;
+    const title = head[1].replace(/\*\*/g, '').trim();
+    const url = decodeBingRedirect(head[2]);
+    let snippet = '';
+    const snMatch = block.match(/\n([^\n]+?)\u00b7\s*([^\n]+)/);
+    if (snMatch) snippet = snMatch[2].trim();
+    if (title && url && url.startsWith('http')) results.push({ title, url, snippet });
+  }
+  return results;
+}
+
+async function searchEngine(engine, q) {
+  const url = engine === 'ddg'
+    ? 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(q)
+    : 'https://www.bing.com/search?q=' + encodeURIComponent(q) + '&count=10';
+  // Primary: Jina Reader (clean Markdown, no CORS issues)
+  try {
+    const md = await fetchViaJina(url, 20000);
+    const res = engine === 'ddg' ? parseDDGMarkdown(md) : parseBingMarkdown(md);
+    if (res.length) return res;
+  } catch (e) {}
+  // Fallback: CORS proxies (raw HTML)
+  try {
+    const html = await fetchViaProxies(url, 15000);
+    const res = engine === 'ddg' ? parseDDGHtml(html) : parseBingHtml(html);
+    if (res.length) return res;
+  } catch (e) {}
+  return [];
+}
+
+async function webSearch(q) {
+  const results = [];
+  const seen = new Set();
+  const addResult = (r) => {
+    if (!r || !r.url || seen.has(r.url)) return;
+    seen.add(r.url);
+    results.push(r);
+  };
+
+  // 1) DuckDuckGo - real web results (primary)
+  (await searchEngine('ddg', q)).slice(0, 8).forEach(addResult);
+
+  // 2) Bing - real web results (secondary, adds diversity)
+  if (results.length < 5) {
+    (await searchEngine('bing', q)).slice(0, 8).forEach(addResult);
+  }
+
+  // 3) DuckDuckGo Instant Answer - direct answer / summary (enrichment)
+  let instant = '';
   try {
     const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&t=vteca', { signal: AbortSignal.timeout(10000) });
     const j = await r.json();
-    if (j.Answer) out += '\n\nDirect answer: ' + j.Answer + '\n';
-    if (j.AbstractText) out += 'Summary: ' + j.AbstractText + '\n';
-    const topics = [];
-    for (const t of (j.RelatedTopics || [])) {
-      if (t.Text && t.FirstURL) topics.push(t.Text + ' (' + t.FirstURL + ')');
-      else if (t.Topics) for (const s of t.Topics) if (s.Text && s.FirstURL) topics.push(s.Text + ' (' + s.FirstURL + ')');
-    }
-    if (topics.length) out += '\n\nRelated results:\n' + topics.slice(0, 5).map((t, i) => (i + 1) + '. ' + t).join('\n');
+    if (j.Answer) instant += 'Direct answer: ' + j.Answer + '\n';
+    if (j.AbstractText) instant += 'Summary: ' + j.AbstractText + '\n';
   } catch (e) {}
-  // 3) Fetch the top Wikipedia article for substantial, readable content
-  if (wikiResults.length) {
-    try {
-      const top = wikiResults[0];
-      const url = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(top.title.replace(/ /g, '_'));
-      const body = await webFetch(url);
-      if (body && body !== '(no text content found)') {
-        out += '\n\n--- Full article: ' + top.title + ' ---\n' + body.slice(0, 3500);
-      }
-    } catch (e) {}
+
+  // 4) Wikipedia - quick reference (enrichment, not primary)
+  let wiki = '';
+  try {
+    const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&srlimit=3&format=json&origin=*', { signal: AbortSignal.timeout(10000) });
+    const j = await r.json();
+    const wr = (j.query && j.query.search) || [];
+    if (wr.length) {
+      wiki = 'Wikipedia reference:\n' + wr.slice(0, 3).map((s, i) =>
+        (i + 1) + '. ' + s.title + ' \u2014 ' + (s.snippet || '').replace(/<[^>]+>/g, '') +
+        ' (https://en.wikipedia.org/wiki/' + encodeURIComponent(s.title.replace(/ /g, '_')) + ')').join('\n');
+    }
+  } catch (e) {}
+
+  let out = '';
+  if (results.length) {
+    out += 'Web search results for: ' + q + '\n\n' +
+      results.slice(0, 10).map((r, i) =>
+        (i + 1) + '. ' + r.title + '\n   URL: ' + r.url + (r.snippet ? '\n   ' + r.snippet : '')).join('\n\n');
+    out += '\n\nUse web_fetch on the most relevant URLs above to read full pages.';
   }
+  if (instant) out += (out ? '\n\n' : '') + instant.trim();
+  if (wiki) out += (out ? '\n\n' : '') + wiki;
   if (!out.trim()) out = 'No results found for: ' + q;
-  return out.slice(0, 7000);
+  return out.slice(0, 9000);
 }
 
 async function webFetch(url) {
@@ -891,26 +1056,17 @@ async function webFetch(url) {
       }
     } catch (e) {}
   }
-  // Other URLs: try a chain of CORS proxies, then give up with a clear error
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
-    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)
-  ];
-  let lastErr = null;
-  for (const make of proxies) {
-    try {
-      const r = await fetch(make(url), { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
-      const html = await r.text();
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(n => n.remove());
-      const text = (doc.body ? doc.body.innerText : '').replace(/\n{3,}/g, '\n\n').trim();
-      if (text) return text.slice(0, 8000);
-      lastErr = new Error('no text content found');
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('All fetch methods failed');
+  // Other URLs: fetch via Jina Reader (returns clean Markdown, no CORS issues), fall back to proxies
+  try {
+    const md = await fetchViaJina(url, 20000);
+    if (md && md.trim()) return md.trim().slice(0, 8000);
+  } catch (e) {}
+  const html = await fetchViaProxies(url, 15000);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(n => n.remove());
+  const text = (doc.body ? doc.body.innerText : '').replace(/\n{3,}/g, '\n\n').trim();
+  if (!text) throw new Error('no text content found');
+  return text.slice(0, 8000);
 }
 
 async function execTool(name, args) {
@@ -1342,6 +1498,13 @@ $('menuBtn').addEventListener('click', () => {
   $('scrim').classList.add('show');
 });
 $('scrim').addEventListener('click', closeSidebar);
+
+$('collapseBtn').addEventListener('click', () => {
+  const sb = $('sidebar');
+  sb.classList.toggle('collapsed');
+  try { localStorage.setItem('oc_sidebar', sb.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+});
+try { if (localStorage.getItem('oc_sidebar') === '1') $('sidebar').classList.add('collapsed'); } catch (e) {}
 
 $('settingsBtn').addEventListener('click', () => {
   $('serverUrl').value = settings.server;
