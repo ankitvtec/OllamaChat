@@ -67,6 +67,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ---------- Main ---------- */
 main{flex:1;display:flex;flex-direction:column;min-width:0;}
 #topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));flex-wrap:wrap;}
+#serverBadge{font-size:11px;color:var(--muted);background:#ECEAE1;padding:3px 9px;border-radius:20px;}
 #menuBtn{display:none;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px;}
 #modelLabel{font-size:13.5px;color:var(--muted);font-weight:500;}
 #modelLabel b{color:var(--text);font-weight:600;}
@@ -268,6 +269,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
       <button id="menuBtn">&#9776;</button>
       <div id="modelLabel"></div>
       <div id="tokenInfo"></div>
+      <div id="serverBadge" style="display:none">&#128274; Office server</div>
       <button id="compactBtn" title="Summarize and compact this conversation">&#8635; Compact</button>
     </header>
     <div id="statusBar"><div class="status-dots"><span></span><span></span><span></span></div><span id="statusText">Thinking&hellip;</span></div>
@@ -363,20 +365,24 @@ let currentUser = null;
 
 async function doLogin() {
   try {
-    await adminReady;
     const u = $('loginUser').value.trim().toLowerCase();
     const p = $('loginPass').value;
     if (!u || !p) { showLoginErr('Enter username and password'); return; }
-    const users = getUsers();
-    const rec = users[u];
-    if (!rec) { showLoginErr('Unknown user. Ask your admin to create an account.'); return; }
-    const h = await sha256(p);
-    if (h !== rec.hash) { showLoginErr('Incorrect password.'); return; }
+    if (SERVER_MODE) {
+      await serverLogin(u, p);
+    } else {
+      await adminReady;
+      const users = getUsers();
+      const rec = users[u];
+      if (!rec) { showLoginErr('Unknown user. Ask your admin to create an account.'); return; }
+      const h = await sha256(p);
+      if (h !== rec.hash) { showLoginErr('Incorrect password.'); return; }
+    }
     currentUser = u;
     sessionStorage.setItem('vtec_session', u);
     enterApp();
   } catch (e) {
-    showLoginErr('Login failed: ' + e.message);
+    showLoginErr(e.message || ('Login failed: ' + e));
   }
 }
 
@@ -386,21 +392,19 @@ function showLoginErr(msg) {
   el.style.display = 'block';
 }
 
-function enterApp() {
+async function enterApp() {
   $('loginScreen').style.display = 'none';
   $('app').style.display = 'flex';
-  const users = getUsers();
-  if (users[currentUser] && users[currentUser].isAdmin) {
-    $('adminBtn').style.display = 'flex';
-  } else {
-    $('adminBtn').style.display = 'none';
-  }
-  loadUserConvs();
+  const isAdmin = SERVER_MODE ? !!(serverMe && serverMe.isAdmin) : !!(getUsers()[currentUser] && getUsers()[currentUser].isAdmin);
+  $('adminBtn').style.display = isAdmin ? 'flex' : 'none';
+  if (SERVER_MODE) $('serverBadge').style.display = 'inline-block';
+  await loadUserConvs();
   renderAll();
   $('input').focus();
 }
 
 function doLogout() {
+  if (SERVER_MODE) serverLogout();
   currentUser = null;
   sessionStorage.removeItem('vtec_session');
   $('app').style.display = 'none';
@@ -411,10 +415,15 @@ function doLogout() {
   $('adminSection').style.display = 'none';
 }
 
-function renderAdminPanel() {
-  const users = getUsers();
+async function renderAdminPanel() {
   const list = $('userList');
   list.innerHTML = '';
+  let users;
+  if (SERVER_MODE) {
+    try { users = await api('/api/users'); } catch (e) { return; }
+  } else {
+    users = getUsers();
+  }
   for (const name in users) {
     const row = document.createElement('div');
     row.className = 'user-row';
@@ -426,12 +435,19 @@ function renderAdminPanel() {
       rm.className = 'rm-user';
       rm.textContent = '\u00D7';
       rm.title = 'Delete user';
-      rm.onclick = () => {
-        if (users[name].isAdmin && Object.values(users).filter(x => x.isAdmin).length <= 1) { alert('Cannot delete the last admin account.'); return; }
+      rm.onclick = async () => {
         if (!confirm('Delete user "' + name + '" and all their chats?')) return;
-        delete users[name];
-        saveUsers(users);
-        localStorage.removeItem('vtec_chats_' + name);
+        try {
+          if (SERVER_MODE) {
+            await api('/api/users/' + encodeURIComponent(name), { method: 'DELETE' });
+          } else {
+            const u2 = getUsers();
+            if (u2[name].isAdmin && Object.values(u2).filter(x => x.isAdmin).length <= 1) { alert('Cannot delete the last admin account.'); return; }
+            delete u2[name];
+            saveUsers(u2);
+            localStorage.removeItem('vtec_chats_' + name);
+          }
+        } catch (e) { alert(e.message); return; }
         renderAdminPanel();
       };
       row.appendChild(rm);
@@ -444,10 +460,16 @@ async function addUser() {
   const u = $('newUser').value.trim().toLowerCase();
   const p = $('newPass').value;
   if (!u || !p) { alert('Enter username and password'); return; }
-  const users = getUsers();
-  if (users[u]) { alert('User already exists'); return; }
-  users[u] = { hash: await sha256(p), isAdmin: $('newAdmin').checked, created: Date.now() };
-  saveUsers(users);
+  try {
+    if (SERVER_MODE) {
+      await api('/api/users', { method: 'POST', body: JSON.stringify({ username: u, password: p, isAdmin: $('newAdmin').checked }) });
+    } else {
+      const users = getUsers();
+      if (users[u]) { alert('User already exists'); return; }
+      users[u] = { hash: await sha256(p), isAdmin: $('newAdmin').checked, created: Date.now() };
+      saveUsers(users);
+    }
+  } catch (e) { alert(e.message); return; }
   $('newUser').value = '';
   $('newPass').value = '';
   $('newAdmin').checked = false;
@@ -488,6 +510,45 @@ const settings = {
   server: localStorage.getItem('oc_server') || 'http://192.168.1.192:11434',
   model:  localStorage.getItem('oc_model')  || 'qwen3.8-vision'
 };
+
+/* ================= Server mode (auto-detected) ================= */
+// When the app is served from the VTEC office server (server.py), accounts and
+// chats are stored centrally in the office database instead of this browser.
+// Opened directly from disk / GitHub Pages, it falls back to localStorage.
+const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
+let serverToken = sessionStorage.getItem('vtec_token') || null;
+let serverMe = null; // {username, isAdmin}
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (serverToken) headers['Authorization'] = 'Bearer ' + serverToken;
+  const res = await fetch(location.origin + path, Object.assign({}, opts, { headers }));
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+async function serverLogin(u, p) {
+  const r = await api('/api/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+  serverToken = r.token;
+  sessionStorage.setItem('vtec_token', r.token);
+  serverMe = { username: r.username, isAdmin: r.isAdmin };
+}
+
+async function serverLogout() {
+  try { await api('/api/logout', { method: 'POST' }); } catch (e) {}
+  serverToken = null; serverMe = null;
+  sessionStorage.removeItem('vtec_token');
+}
+
+let persistTimer = null;
+function serverPersist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    api('/api/chats', { method: 'POST', body: JSON.stringify({ convs }) }).catch(() => {});
+  }, 800);
+}
 let skillKey = localStorage.getItem('oc_skill') || 'general';
 if (!SKILLS[skillKey]) skillKey = 'general';
 let convs = {};
@@ -499,7 +560,13 @@ let lastTokens = { prompt: 0, completion: 0 };
 function userConvKey() { return 'vtec_chats_' + currentUser; }
 function userActiveKey() { return 'vtec_active_' + currentUser; }
 
-function loadUserConvs() {
+async function loadUserConvs() {
+  if (SERVER_MODE) {
+    try { convs = await api('/api/chats'); } catch (e) { convs = {}; }
+    activeId = localStorage.getItem(userActiveKey()) || null;
+    if (activeId && !convs[activeId]) activeId = null;
+    return;
+  }
   try { convs = JSON.parse(localStorage.getItem(userConvKey()) || '{}'); } catch(e) { convs = {}; }
   activeId = localStorage.getItem(userActiveKey()) || null;
   if (activeId && !convs[activeId]) activeId = null;
@@ -507,6 +574,7 @@ function loadUserConvs() {
 
 function persist() {
   if (!currentUser) return;
+  if (SERVER_MODE) { serverPersist(); return; }
   try {
     localStorage.setItem(userConvKey(), JSON.stringify(convs));
     localStorage.setItem(userActiveKey(), activeId || '');
@@ -1319,7 +1387,15 @@ $('greet').textContent = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18
 
 /* ================= Init ================= */
 const savedSession = sessionStorage.getItem('vtec_session');
-if (savedSession && getUsers()[savedSession]) {
+if (SERVER_MODE) {
+  if (savedSession && serverToken) {
+    api('/api/me').then(me => {
+      serverMe = me;
+      currentUser = me.username;
+      enterApp();
+    }).catch(() => {});
+  }
+} else if (savedSession && getUsers()[savedSession]) {
   currentUser = savedSession;
   enterApp();
 }
