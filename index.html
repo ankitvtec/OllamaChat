@@ -152,6 +152,13 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .toolcard summary::-webkit-details-marker{display:none;}
 .toolcard summary .st{margin-left:auto;color:var(--muted);font-size:12px;}
 .toolcard pre{padding:10px 12px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#5a5648;max-height:220px;overflow-y:auto;}
+.webgroup .wg-body{padding:10px 12px;border-top:1px solid var(--border);max-height:280px;overflow-y:auto;}
+.wg-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;color:var(--text);}
+.wg-row .wg-st{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap;}
+.wg-item{padding:9px 0;border-bottom:1px solid var(--border);}
+.wg-item:last-child{border-bottom:none;padding-bottom:2px;}
+.wg-head{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:5px;word-break:break-all;}
+.wg-item pre{margin:0;padding:0;border:none;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#5a5648;max-height:170px;overflow-y:auto;}
 
 /* ---------- Composer ---------- */
 #composerWrap{padding:6px 16px calc(10px + env(safe-area-inset-bottom));}
@@ -445,7 +452,7 @@ async function addUser() {
 const SKILLS = {
   general: { label: 'General', system: '', tools: true },
   research: { label: 'Web Research',
-    system: "You are a thorough research assistant with live web access. Use the web_search tool to find current, factual information and web_fetch to read specific pages when you need detail. Run multiple searches for complex questions. Always cite your sources as plain URLs at the end of your answer.", tools: true },
+    system: "You are an efficient research assistant with live web access. Work like a professional researcher: run at most 1-2 web_search calls, then fetch at most 3-5 of the most relevant, authoritative pages with web_fetch (the app enforces a 5-page limit per request). If you need several pages, request them all in one turn so they load together. Stop researching as soon as you have enough to answer well - never fetch every result. Synthesize a clear, well-structured answer and cite your sources as plain URLs at the end.", tools: true },
   code: { label: 'Code Expert',
     system: 'You are a senior software engineer. Write clean, idiomatic, well-commented code. Explain key decisions briefly and point out edge cases, pitfalls, and how to test the result. When you write JavaScript code, keep it self-contained so it can be run directly in a browser console.', tools: true },
   writing: { label: 'Writing',
@@ -456,10 +463,10 @@ const SKILLS = {
 
 const TOOLS = [
   { type: 'function', function: { name: 'web_search',
-    description: 'Search the web for current information. Returns a summary, direct answer, and related results with URLs. Use for news, facts, prices, documentation, and anything that may have changed recently.',
+    description: 'Search the web for current information. Returns up to 5 results with URLs, a summary, and the full text of the top article. Use at most 1-2 searches per question.',
     parameters: { type: 'object', properties: { query: { type: 'string', description: 'The search query' } }, required: ['query'] } } },
   { type: 'function', function: { name: 'web_fetch',
-    description: 'Fetch a web page by URL and return its main text content. Use after web_search to read a specific source in detail.',
+    description: 'Fetch a web page by URL and return its main text content. At most 5 pages can be fetched per request - pick the most important sources and request them together in one turn.',
     parameters: { type: 'object', properties: { url: { type: 'string', description: 'The full URL to fetch (must start with http:// or https://)' } }, required: ['url'] } } }
 ];
 
@@ -623,6 +630,31 @@ function toolCardHtml(t, running) {
     '</summary><pre>' + esc(body) + '</pre></details>';
 }
 
+function webGroupHtml(g, running) {
+  const total = g.items.length;
+  const live = running
+    ? '<div class="think-live"><span class="spin"></span><span>Fetching web</span><span class="dots"><span></span><span></span><span></span></span></div>'
+    : '';
+  let body;
+  if (running) {
+    body = g.items.map(i => {
+      const icon = i.name === 'web_search' ? '&#128269;' : '&#127760;';
+      const label = i.name === 'web_search' ? (i.args && i.args.query || '') : (i.args && i.args.url || '');
+      return '<div class="wg-row">' + icon + ' <span>' + esc(label) + '</span><span class="wg-st">' + (i.result === '' ? 'working\u2026' : 'done') + '</span></div>';
+    }).join('');
+  } else {
+    body = g.items.map(i => {
+      const icon = i.name === 'web_search' ? '&#128269;' : '&#127760;';
+      const head = i.name === 'web_search' ? 'Search: ' + (i.args && i.args.query || '') : (i.args && i.args.url || '');
+      return '<div class="wg-item"><div class="wg-head">' + icon + ' ' + esc(head) + '</div><pre>' + esc(String(i.result || '').slice(0, 2500)) + '</pre></div>';
+    }).join('');
+  }
+  const title = running ? 'Fetching web' : 'Web research \u00B7 ' + total + ' source' + (total > 1 ? 's' : '');
+  return live + '<details class="toolcard webgroup"' + (running ? ' open' : '') + '><summary>&#127760; <span>' + esc(title) + '</span>' +
+    (running ? '<span class="st">working\u2026</span>' : '<span class="st">\u25BE</span>') +
+    '</summary><div class="wg-body">' + body + '</div></details>';
+}
+
 function renderMessages() {
   const conv = getConv();
   const box = $('messages');
@@ -646,7 +678,7 @@ function renderMessages() {
       let inner = '<div class="who">' + esc(settings.model) + '</div>';
       if (m.thinking) inner += thinkHtml(m.thinking, false);
       if (m.tools && m.tools.length)
-        inner += '<div class="tools">' + m.tools.map(t => toolCardHtml(t, false)).join('') + '</div>';
+        inner += '<div class="tools">' + m.tools.map(t => t.kind === 'web' ? webGroupHtml(t, false) : toolCardHtml(t, false)).join('') + '</div>';
       if (m.content) inner += '<div class="content">' + md(m.content) + '</div>';
       d.innerHTML = inner;
       box.appendChild(d);
@@ -691,18 +723,18 @@ async function webSearch(q) {
   // 1) Wikipedia search (reliable, substantial) — primary source
   let wikiResults = [];
   try {
-    const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&srlimit=6&format=json&origin=*');
+    const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&srlimit=5&format=json&origin=*', { signal: AbortSignal.timeout(10000) });
     const j = await r.json();
     wikiResults = (j.query && j.query.search) || [];
   } catch (e) {}
   if (wikiResults.length) {
-    out += 'Wikipedia results:\n' + wikiResults.slice(0, 6).map((s, i) =>
+    out += 'Wikipedia results:\n' + wikiResults.slice(0, 5).map((s, i) =>
       (i + 1) + '. ' + s.title + ' \u2014 ' + (s.snippet || '').replace(/<[^>]+>/g, '') +
       ' (https://en.wikipedia.org/wiki/' + encodeURIComponent(s.title.replace(/ /g, '_')) + ')').join('\n');
   }
   // 2) DuckDuckGo Instant Answer for a direct answer / related topics (secondary enrichment)
   try {
-    const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&t=vteca');
+    const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&t=vteca', { signal: AbortSignal.timeout(10000) });
     const j = await r.json();
     if (j.Answer) out += '\n\nDirect answer: ' + j.Answer + '\n';
     if (j.AbstractText) out += 'Summary: ' + j.AbstractText + '\n';
@@ -711,7 +743,7 @@ async function webSearch(q) {
       if (t.Text && t.FirstURL) topics.push(t.Text + ' (' + t.FirstURL + ')');
       else if (t.Topics) for (const s of t.Topics) if (s.Text && s.FirstURL) topics.push(s.Text + ' (' + s.FirstURL + ')');
     }
-    if (topics.length) out += '\n\nRelated results:\n' + topics.slice(0, 6).map((t, i) => (i + 1) + '. ' + t).join('\n');
+    if (topics.length) out += '\n\nRelated results:\n' + topics.slice(0, 5).map((t, i) => (i + 1) + '. ' + t).join('\n');
   } catch (e) {}
   // 3) Fetch the top Wikipedia article for substantial, readable content
   if (wikiResults.length) {
@@ -729,7 +761,7 @@ async function webSearch(q) {
 }
 
 async function webFetch(url) {
-  const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+  const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(15000) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const html = await r.text();
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -800,8 +832,13 @@ function buildApiMessages(conv, skill) {
       arr.push(msg);
     } else {
       if (m.tools && m.tools.length) {
-        arr.push({ role: 'assistant', content: '', tool_calls: m.tools.map(t => ({ function: { name: t.name, arguments: t.args } })) });
-        for (const t of m.tools) arr.push({ role: 'tool', name: t.name, content: String(t.result || '').slice(0, 12000) });
+        const flat = [];
+        for (const g of m.tools) {
+          if (g.kind === 'web') for (const i of g.items) flat.push(i);
+          else flat.push(g);
+        }
+        arr.push({ role: 'assistant', content: '', tool_calls: flat.map(t => ({ function: { name: t.name, arguments: t.args } })) });
+        for (const t of flat) arr.push({ role: 'tool', name: t.name, content: String(t.result || '').slice(0, 12000) });
       }
       if (m.content) arr.push({ role: 'assistant', content: m.content });
     }
@@ -903,26 +940,61 @@ async function runLoop(el, useTools) {
   let apiMsgs = buildApiMessages(conv, skill);
   let fullContent = '', fullThinking = '';
   const tools = [];
+  let webGroup = null;
+  let fetchCount = 0;
+  const MAX_FETCHES = 5;
+
+  function renderTools() {
+    el.querySelector('.tools').innerHTML = tools.map(g => g.kind === 'web'
+      ? webGroupHtml(g, g.items.some(i => i.result === ''))
+      : toolCardHtml(g, false)).join('');
+    scroll();
+  }
+
   for (let iter = 0; iter < 5; iter++) {
     setStatus('Thinking\u2026', true);
     const { content, thinking, toolCalls } = await streamOnce(apiMsgs, useTools, el);
     fullContent += content;
     if (thinking) fullThinking += (fullThinking ? '\n' : '') + thinking;
     if (!toolCalls.length) break;
-    for (const tc of toolCalls) {
-      tools.push({ name: tc.function.name, args: tc.function.arguments || {}, result: '' });
-      el.querySelector('.tools').innerHTML = tools.map(t => toolCardHtml(t, t.result === '')).join('');
-      scroll();
+
+    // Group this turn's web calls under one "Fetching web" card (Claude-style)
+    const steps = [];
+    const results = new Array(toolCalls.length);
+    for (let i = 0; i < toolCalls.length; i++) {
+      const tc = toolCalls[i];
+      const name = tc.function.name;
+      const args = tc.function.arguments || {};
+      if (name === 'web_fetch' && fetchCount >= MAX_FETCHES) {
+        results[i] = { name, content: 'Source limit reached: you have already fetched ' + MAX_FETCHES + ' pages this turn. Answer using the information gathered so far.' };
+        continue;
+      }
+      if (name === 'web_fetch') fetchCount++;
+      const step = { name, args, result: '' };
+      if (name === 'web_search' || name === 'web_fetch') {
+        if (!webGroup) { webGroup = { kind: 'web', items: [] }; tools.push(webGroup); }
+        webGroup.items.push(step);
+      } else {
+        tools.push({ kind: 'tool', name, args, result: '' });
+      }
+      steps.push(step);
+      results[i] = step;
     }
     apiMsgs.push({ role: 'assistant', content: '', tool_calls: toolCalls });
-    for (const tc of toolCalls) {
-      const step = tools.find(t => t.result === '');
-      setStatus(tc.function.name === 'web_search' ? 'Searching the web\u2026' : 'Fetching page\u2026', true);
-      try { step.result = await execTool(tc.function.name, tc.function.arguments || {}); }
-      catch (e) { step.result = 'Error: ' + e.message; }
-      el.querySelector('.tools').innerHTML = tools.map(t => toolCardHtml(t, t.result === '')).join('');
-      scroll();
-      apiMsgs.push({ role: 'tool', name: tc.function.name, content: String(step.result).slice(0, 12000) });
+    renderTools();
+
+    // Fetch all requested pages in parallel (batched, like Claude)
+    if (steps.length) {
+      setStatus('Fetching web\u2026', true);
+      await Promise.all(steps.map(async step => {
+        try { step.result = await execTool(step.name, step.args); }
+        catch (e) { step.result = 'Error: ' + e.message; }
+      }));
+      renderTools();
+    }
+    for (const r of results) {
+      if (!r) continue;
+      apiMsgs.push({ role: 'tool', name: r.name, content: r.content !== undefined ? r.content : String(r.result).slice(0, 12000) });
     }
   }
   conv.messages.push({ role: 'assistant', content: fullContent, thinking: fullThinking, tools });
