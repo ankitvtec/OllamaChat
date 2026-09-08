@@ -29,15 +29,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .login-card .btn{width:100%;margin-top:20px;padding:11px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;}
 .login-card .btn:hover{background:var(--accent-dark);}
 .login-card .err{color:#B3402A;font-size:13px;margin-top:10px;text-align:center;display:none;}
-.admin-section{margin-top:24px;border-top:1px solid var(--border);padding-top:18px;display:none;}
-.admin-section h3{font-size:14px;color:var(--muted);margin-bottom:12px;font-family:Georgia,serif;}
-.admin-section .user-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px;}
-.admin-section .user-row span{flex:1;}
+.admin-section{display:none;border-top:1px solid var(--border);padding:12px 14px;}
+.admin-section h3{font-size:11px;color:var(--muted);margin-bottom:10px;font-family:Georgia,serif;text-transform:uppercase;letter-spacing:.07em;}
+.admin-section .user-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;}
+.admin-section .user-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .admin-section .user-row .rm-user{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:5px;}
 .admin-section .user-row .rm-user:hover{background:#ECEAE1;color:#B3402A;}
-.admin-section .add-row{display:flex;gap:6px;margin-top:10px;}
-.admin-section .add-row input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);}
-.admin-section .add-row button{padding:8px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;}
+.admin-section .add-row{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+.admin-section .add-row input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);}
+.admin-section .add-row button{padding:7px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;}
+.admin-section .admin-check{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;}
 
 /* ---------- App Layout ---------- */
 #app{display:flex;height:100dvh;overflow:hidden;}
@@ -234,15 +235,6 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
     <input id="loginPass" type="password" placeholder="password" autocomplete="current-password">
     <button class="btn" id="loginBtn">Sign In</button>
     <div class="err" id="loginErr"></div>
-    <div class="admin-section" id="adminSection">
-      <h3>Admin &mdash; Manage Users</h3>
-      <div id="userList"></div>
-      <div class="add-row">
-        <input id="newUser" placeholder="username">
-        <input id="newPass" type="password" placeholder="password">
-        <button id="addUserBtn">Add</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -254,6 +246,16 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
       <button class="new-chat" id="newChatBtn">+ &nbsp;New chat</button>
     </div>
     <nav id="convList"></nav>
+    <div class="admin-section" id="adminSection">
+      <h3>Manage users</h3>
+      <div id="userList"></div>
+      <div class="add-row">
+        <input id="newUser" placeholder="username">
+        <input id="newPass" type="password" placeholder="password">
+        <button id="addUserBtn">Add user</button>
+      </div>
+      <label class="admin-check"><input type="checkbox" id="newAdmin"> Make this user an admin</label>
+    </div>
     <div class="side-bottom">
       <button id="adminBtn" style="display:none">&#128101;&nbsp; Admin</button>
       <button id="settingsBtn">&#9881;&nbsp; Settings</button>
@@ -390,6 +392,8 @@ function enterApp() {
   const users = getUsers();
   if (users[currentUser] && users[currentUser].isAdmin) {
     $('adminBtn').style.display = 'flex';
+  } else {
+    $('adminBtn').style.display = 'none';
   }
   loadUserConvs();
   renderAll();
@@ -423,6 +427,7 @@ function renderAdminPanel() {
       rm.textContent = '\u00D7';
       rm.title = 'Delete user';
       rm.onclick = () => {
+        if (users[name].isAdmin && Object.values(users).filter(x => x.isAdmin).length <= 1) { alert('Cannot delete the last admin account.'); return; }
         if (!confirm('Delete user "' + name + '" and all their chats?')) return;
         delete users[name];
         saveUsers(users);
@@ -441,10 +446,11 @@ async function addUser() {
   if (!u || !p) { alert('Enter username and password'); return; }
   const users = getUsers();
   if (users[u]) { alert('User already exists'); return; }
-  users[u] = { hash: await sha256(p), isAdmin: false, created: Date.now() };
+  users[u] = { hash: await sha256(p), isAdmin: $('newAdmin').checked, created: Date.now() };
   saveUsers(users);
   $('newUser').value = '';
   $('newPass').value = '';
+  $('newAdmin').checked = false;
   renderAdminPanel();
 }
 
@@ -1182,12 +1188,9 @@ $('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') $('logi
 $('logoutBtn').addEventListener('click', doLogout);
 $('adminBtn').addEventListener('click', () => {
   const sec = $('adminSection');
-  if (sec.style.display === 'none' || !sec.style.display) {
-    sec.style.display = 'block';
-    renderAdminPanel();
-  } else {
-    sec.style.display = 'none';
-  }
+  const open = sec.style.display === 'block';
+  sec.style.display = open ? 'none' : 'block';
+  if (!open) renderAdminPanel();
 });
 $('addUserBtn').addEventListener('click', addUser);
 
