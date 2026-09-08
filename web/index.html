@@ -452,7 +452,7 @@ async function addUser() {
 const SKILLS = {
   general: { label: 'General', system: '', tools: true },
   research: { label: 'Web Research',
-    system: "You are an efficient research assistant with live web access. Work like a professional researcher: run at most 1-2 web_search calls, then fetch at most 3-5 of the most relevant, authoritative pages with web_fetch (the app enforces a 5-page limit per request). If you need several pages, request them all in one turn so they load together. Stop researching as soon as you have enough to answer well - never fetch every result. Synthesize a clear, well-structured answer and cite your sources as plain URLs at the end.", tools: true },
+    system: "You are an efficient research assistant with live web access. Work like a professional researcher: run at most 1-2 web_search calls, then fetch at most 3-5 of the most relevant, authoritative pages with web_fetch (the app enforces a 5-page limit per request). If you need several pages, request them all in one turn so they load together. Stop researching as soon as you have enough to answer well - never fetch every result.\n\nCRITICAL: You MUST always finish with a complete, well-structured answer to the user's question. Never stop after an intro sentence, and never end your turn right after tool calls. Even if some sources fail to load or return errors, synthesize a full answer from whatever information you did gather (search snippets, summaries, and any successful fetches) combined with your own knowledge, and briefly note which parts come from live sources vs. your background knowledge. Cite your sources as plain URLs at the end.", tools: true },
   code: { label: 'Code Expert',
     system: 'You are a senior software engineer. Write clean, idiomatic, well-commented code. Explain key decisions briefly and point out edge cases, pitfalls, and how to test the result. When you write JavaScript code, keep it self-contained so it can be run directly in a browser console.', tools: true },
   writing: { label: 'Writing',
@@ -761,13 +761,49 @@ async function webSearch(q) {
 }
 
 async function webFetch(url) {
-  const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(15000) });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  const html = await r.text();
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(n => n.remove());
-  const text = (doc.body ? doc.body.innerText : '').replace(/\n{3,}/g, '\n\n').trim();
-  return (text || '(no text content found)').slice(0, 8000);
+  // Wikipedia: use the reliable MediaWiki API for full plain-text (no proxy needed)
+  const wm = url.match(/wikipedia\.org\/wiki\/(.+)$/);
+  if (wm) {
+    const title = decodeURIComponent(wm[1]).replace(/_/g, ' ');
+    try {
+      const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&exsectionformat=plain&redirects=1&titles=' + encodeURIComponent(title) + '&format=json&origin=*', { signal: AbortSignal.timeout(12000) });
+      if (r.ok) {
+        const j = await r.json();
+        const pages = j.query && j.query.pages;
+        if (pages) {
+          const p = Object.values(pages)[0];
+          if (p && p.extract && p.extract.trim()) return p.extract.trim().slice(0, 8000);
+        }
+      }
+    } catch (e) {}
+    try {
+      const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(title), { signal: AbortSignal.timeout(10000) });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.extract && j.extract.trim()) return j.extract.trim().slice(0, 8000);
+      }
+    } catch (e) {}
+  }
+  // Other URLs: try a chain of CORS proxies, then give up with a clear error
+  const proxies = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u)
+  ];
+  let lastErr = null;
+  for (const make of proxies) {
+    try {
+      const r = await fetch(make(url), { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+      const html = await r.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(n => n.remove());
+      const text = (doc.body ? doc.body.innerText : '').replace(/\n{3,}/g, '\n\n').trim();
+      if (text) return text.slice(0, 8000);
+      lastErr = new Error('no text content found');
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('All fetch methods failed');
 }
 
 async function execTool(name, args) {
@@ -996,6 +1032,19 @@ async function runLoop(el, useTools) {
       if (!r) continue;
       apiMsgs.push({ role: 'tool', name: r.name, content: r.content !== undefined ? r.content : String(r.result).slice(0, 12000) });
     }
+  }
+  // Guard: if the model stopped with a thin/incomplete answer after researching,
+  // force one final pass (no tools) so the user always gets a complete answer.
+  const usedTools = tools.length > 0;
+  const contentLen = fullContent.replace(/\s+/g, ' ').trim().length;
+  if (usedTools && contentLen < 250) {
+    try {
+      setStatus('Writing answer\u2026', true);
+      apiMsgs.push({ role: 'user', content: 'You have finished your research. Now write the complete, well-structured final answer to my original question. Do not call any more tools - just give the full answer now, using the information you gathered plus your own knowledge.' });
+      const fin = await streamOnce(apiMsgs, false, el);
+      fullContent += (fullContent ? '\n\n' : '') + fin.content;
+      if (fin.thinking) fullThinking += (fullThinking ? '\n' : '') + fin.thinking;
+    } catch (e) { /* keep whatever we have */ }
   }
   conv.messages.push({ role: 'assistant', content: fullContent, thinking: fullThinking, tools });
   persist();
