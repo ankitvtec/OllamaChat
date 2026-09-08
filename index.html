@@ -308,8 +308,20 @@ const ADMIN_USER = 'admin';
 const ADMIN_DEFAULT_PASS = 'admin123';
 
 async function sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  if (window.crypto && crypto.subtle) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Fallback for non-secure contexts (http:// or file://) where Web Crypto is unavailable
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761) >>> 0;
+    h2 = Math.imul(h2 + c, 2246822519) >>> 0;
+  }
+  h1 ^= h2 >>> 13; h1 = Math.imul(h1, 0x5bd1e995) >>> 0;
+  h2 ^= h1 >>> 15; h2 = Math.imul(h2, 0x27d4eb2f) >>> 0;
+  return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).repeat(4);
 }
 
 function getUsers() {
@@ -317,30 +329,33 @@ function getUsers() {
 }
 function saveUsers(u) { localStorage.setItem('vtec_users', JSON.stringify(u)); }
 
-function initAdmin() {
+const adminReady = (async () => {
   const users = getUsers();
   if (!users[ADMIN_USER]) {
-    sha256(ADMIN_DEFAULT_PASS).then(h => {
-      users[ADMIN_USER] = { hash: h, isAdmin: true, created: Date.now() };
-      saveUsers(users);
-    });
+    users[ADMIN_USER] = { hash: await sha256(ADMIN_DEFAULT_PASS), isAdmin: true, created: Date.now() };
+    saveUsers(users);
   }
-}
+})();
 
 let currentUser = null;
 
 async function doLogin() {
-  const u = $('loginUser').value.trim().toLowerCase();
-  const p = $('loginPass').value;
-  if (!u || !p) { showLoginErr('Enter username and password'); return; }
-  const users = getUsers();
-  const rec = users[u];
-  if (!rec) { showLoginErr('Unknown user. Ask your admin to create an account.'); return; }
-  const h = await sha256(p);
-  if (h !== rec.hash) { showLoginErr('Incorrect password.'); return; }
-  currentUser = u;
-  sessionStorage.setItem('vtec_session', u);
-  enterApp();
+  try {
+    await adminReady;
+    const u = $('loginUser').value.trim().toLowerCase();
+    const p = $('loginPass').value;
+    if (!u || !p) { showLoginErr('Enter username and password'); return; }
+    const users = getUsers();
+    const rec = users[u];
+    if (!rec) { showLoginErr('Unknown user. Ask your admin to create an account.'); return; }
+    const h = await sha256(p);
+    if (h !== rec.hash) { showLoginErr('Incorrect password.'); return; }
+    currentUser = u;
+    sessionStorage.setItem('vtec_session', u);
+    enterApp();
+  } catch (e) {
+    showLoginErr('Login failed: ' + e.message);
+  }
 }
 
 function showLoginErr(msg) {
@@ -1122,7 +1137,6 @@ const h = new Date().getHours();
 $('greet').textContent = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 
 /* ================= Init ================= */
-initAdmin();
 const savedSession = sessionStorage.getItem('vtec_session');
 if (savedSession && getUsers()[savedSession]) {
   currentUser = savedSession;
