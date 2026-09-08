@@ -3,16 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Ollama Chat</title>
+<title>VTEC AI</title>
 <style>
 :root{
   --bg:#FAF9F5; --side:#F5F4EF; --text:#3D3929; --muted:#8A8578;
   --accent:#D97757; --accent-dark:#C05F42; --border:#E8E5DC;
   --user:#F0EEE6; --code:#F5F4EF; --white:#FFFFFF;
+  --think:#7C6F9F; --think-bg:#F3F0FA; --think-border:#DDD5F0;
+  --green:#4A9; --green-bg:#EDF7F2;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;}
+
+/* ---------- Login ---------- */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.login-card{background:var(--white);border:1px solid var(--border);border-radius:18px;padding:36px 32px;width:min(92vw,400px);box-shadow:0 8px 32px rgba(61,57,41,.08);}
+.login-card .logo{text-align:center;font-size:40px;color:var(--accent);margin-bottom:8px;}
+.login-card h1{text-align:center;font-family:Georgia,serif;font-size:26px;font-weight:500;margin-bottom:4px;}
+.login-card .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px;}
+.login-card label{display:block;font-size:13px;color:var(--muted);margin:14px 0 4px;}
+.login-card input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:10px 12px;font-size:14.5px;}
+.login-card input:focus{outline:none;border-color:var(--accent);}
+.login-card .btn{width:100%;margin-top:20px;padding:11px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer;}
+.login-card .btn:hover{background:var(--accent-dark);}
+.login-card .err{color:#B3402A;font-size:13px;margin-top:10px;text-align:center;display:none;}
+.admin-section{margin-top:24px;border-top:1px solid var(--border);padding-top:18px;display:none;}
+.admin-section h3{font-size:14px;color:var(--muted);margin-bottom:12px;font-family:Georgia,serif;}
+.admin-section .user-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13.5px;}
+.admin-section .user-row span{flex:1;}
+.admin-section .user-row .rm-user{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:5px;}
+.admin-section .user-row .rm-user:hover{background:#ECEAE1;color:#B3402A;}
+.admin-section .add-row{display:flex;gap:6px;margin-top:10px;}
+.admin-section .add-row input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);}
+.admin-section .add-row button{padding:8px 14px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;cursor:pointer;white-space:nowrap;}
+
+/* ---------- App Layout ---------- */
 #app{display:flex;height:100dvh;overflow:hidden;}
 
 /* ---------- Sidebar ---------- */
@@ -30,17 +56,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .conv-item .del{visibility:hidden;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 3px;border-radius:5px;}
 .conv-item:hover .del{visibility:visible;}
 .conv-item .del:hover{background:#DDD9CC;color:var(--text);}
-.side-bottom{padding:10px 12px;border-top:1px solid var(--border);}
-#settingsBtn{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;border-radius:9px;padding:8px 10px;font-size:13.5px;color:var(--muted);cursor:pointer;}
-#settingsBtn:hover{background:#ECEAE1;color:var(--text);}
+.side-bottom{padding:10px 12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px;}
+.side-bottom button{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;border-radius:9px;padding:8px 10px;font-size:13.5px;color:var(--muted);cursor:pointer;text-align:left;}
+.side-bottom button:hover{background:#ECEAE1;color:var(--text);}
 #scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40;}
 
 /* ---------- Main ---------- */
 main{flex:1;display:flex;flex-direction:column;min-width:0;}
-#topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));}
+#topbar{display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));flex-wrap:wrap;}
 #menuBtn{display:none;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px;}
 #modelLabel{font-size:13.5px;color:var(--muted);font-weight:500;}
 #modelLabel b{color:var(--text);font-weight:600;}
+#tokenInfo{font-size:11.5px;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:6px;}
+#compactBtn{display:none;background:var(--code);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer;}
+#compactBtn:hover{color:var(--text);border-color:#c9c4b4;}
+#statusBar{display:none;align-items:center;gap:8px;padding:6px 16px;font-size:13px;color:var(--think);background:var(--think-bg);border-top:1px solid var(--think-border);}
+#statusBar.show{display:flex;}
+.status-dots{display:flex;gap:3px;}
+.status-dots span{width:6px;height:6px;border-radius:50%;background:var(--think);animation:dotPulse 1.2s ease-in-out infinite;}
+.status-dots span:nth-child(2){animation-delay:.2s;}
+.status-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotPulse{0%,80%,100%{opacity:.3;transform:scale(.8);}40%{opacity:1;transform:scale(1);}}
 
 #chat{flex:1;overflow-y:auto;scroll-behavior:smooth;}
 .inner{max-width:780px;margin:0 auto;padding:8px 20px 24px;}
@@ -61,7 +97,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .msg.user{display:flex;justify-content:flex-end;}
 .msg.user .bubble{background:var(--user);border-radius:16px;padding:10px 16px;max-width:85%;white-space:pre-wrap;word-wrap:break-word;}
 .msg.assistant{max-width:100%;}
-.msg.assistant .who{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px;}
+.msg.assistant .who{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
 .content{word-wrap:break-word;}
 .content p{margin:0 0 12px;}
 .content p:last-child{margin-bottom:0;}
@@ -73,16 +109,32 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .content blockquote{border-left:3px solid var(--accent);padding-left:12px;color:var(--muted);margin:0 0 12px;}
 .content code{background:var(--code);border:1px solid var(--border);padding:1px 5px;border-radius:5px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;}
 .codeblock{background:var(--code);border:1px solid var(--border);border-radius:10px;margin:10px 0;overflow:hidden;}
-.codehead{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;}
-.copybtn{background:none;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);padding:2px 8px;cursor:pointer;}
+.codehead{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;gap:6px;}
+.codehead .actions{display:flex;gap:4px;}
+.copybtn,.runbtn,.openbtn{background:none;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);padding:2px 8px;cursor:pointer;white-space:nowrap;}
 .copybtn:hover{color:var(--text);border-color:#c9c4b4;}
+.runbtn{color:var(--green);border-color:#c0dcc8;}
+.runbtn:hover{background:var(--green-bg);border-color:var(--green);}
+.openbtn{color:var(--accent-dark);border-color:#e0c4b8;}
+.openbtn:hover{background:#FFF5F0;border-color:var(--accent);}
 .codeblock pre{padding:12px;overflow-x:auto;white-space:pre;}
 .codeblock pre code{background:none;border:none;padding:0;font-size:13px;line-height:1.5;}
+.code-output{background:#2D2A22;color:#E8E5DC;padding:10px 12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;border-top:1px solid var(--border);display:none;}
+.code-output.show{display:block;}
+.code-output .err-line{color:#F87171;}
 .att-img{max-width:240px;max-height:240px;border-radius:10px;display:block;margin:4px 0;cursor:pointer;}
 .file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12.5px;margin:4px 4px 4px 0;}
 .err{color:#B3402A;}
 .cursor{display:inline-block;width:8px;height:16px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(1) infinite;border-radius:2px;}
 @keyframes blink{50%{opacity:0;}}
+
+/* ---------- Thinking ---------- */
+.think-section{margin-bottom:12px;}
+.think-section details{background:var(--think-bg);border:1px solid var(--think-border);border-radius:10px;font-size:13px;}
+.think-section summary{cursor:pointer;padding:8px 12px;color:var(--think);list-style:none;display:flex;align-items:center;gap:8px;font-weight:500;}
+.think-section summary::-webkit-details-marker{display:none;}
+.think-section summary .st{margin-left:auto;font-size:12px;opacity:.7;}
+.think-section .think-body{padding:10px 12px;border-top:1px solid var(--think-border);white-space:pre-wrap;word-break:break-word;font-size:12.5px;color:#6B5F8A;line-height:1.5;max-height:300px;overflow-y:auto;}
 
 /* ---------- Tool cards ---------- */
 .tools{margin-bottom:12px;display:flex;flex-direction:column;gap:8px;}
@@ -110,6 +162,18 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 #sendBtn:disabled{background:#D8CFC2;cursor:default;}
 .disclaimer{text-align:center;font-size:11.5px;color:var(--muted);margin-top:8px;}
 
+/* ---------- Artifacts Panel ---------- */
+#artifactsPanel{position:fixed;right:0;top:0;bottom:0;width:min(92vw,480px);background:var(--white);border-left:1px solid var(--border);z-index:60;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;box-shadow:-4px 0 20px rgba(0,0,0,.08);}
+#artifactsPanel.open{transform:translateX(0);}
+.art-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);}
+.art-head h3{font-size:15px;font-family:Georgia,serif;}
+.art-head button{background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:6px;}
+.art-head button:hover{background:var(--code);color:var(--text);}
+.art-body{flex:1;overflow:auto;padding:0;}
+.art-body iframe{width:100%;height:100%;border:none;background:#fff;}
+.art-body .art-code{padding:16px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre;overflow-x:auto;}
+.art-body .art-code .ln{color:var(--muted);user-select:none;display:inline-block;width:36px;text-align:right;margin-right:12px;}
+
 /* ---------- Settings ---------- */
 #settings{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100;}
 #settings.open{display:flex;}
@@ -132,19 +196,48 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
   #menuBtn{display:block;}
   #suggGrid{grid-template-columns:1fr;}
   #skillSel{max-width:104px;font-size:12px;}
+  #artifactsPanel{width:100vw;}
 }
 </style>
 </head>
 <body>
-<div id="app">
+
+<!-- ================= Login Screen ================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="logo">&#10035;</div>
+    <h1>VTEC AI</h1>
+    <div class="sub">Sign in to your workspace</div>
+    <label>Username</label>
+    <input id="loginUser" placeholder="your-username" autocomplete="username">
+    <label>Password</label>
+    <input id="loginPass" type="password" placeholder="password" autocomplete="current-password">
+    <button class="btn" id="loginBtn">Sign In</button>
+    <div class="err" id="loginErr"></div>
+    <div class="admin-section" id="adminSection">
+      <h3>Admin &mdash; Manage Users</h3>
+      <div id="userList"></div>
+      <div class="add-row">
+        <input id="newUser" placeholder="username">
+        <input id="newPass" type="password" placeholder="password">
+        <button id="addUserBtn">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Main App ================= -->
+<div id="app" style="display:none">
   <aside id="sidebar">
     <div class="side-top">
-      <div class="brand"><span class="logo">&#10035;</span> Ollama Chat</div>
+      <div class="brand"><span class="logo">&#10035;</span> VTEC AI</div>
       <button class="new-chat" id="newChatBtn">+ &nbsp;New chat</button>
     </div>
     <nav id="convList"></nav>
     <div class="side-bottom">
+      <button id="adminBtn" style="display:none">&#128101;&nbsp; Admin</button>
       <button id="settingsBtn">&#9881;&nbsp; Settings</button>
+      <button id="logoutBtn">&#8618;&nbsp; Sign out</button>
     </div>
   </aside>
   <div id="scrim"></div>
@@ -152,7 +245,10 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
     <header id="topbar">
       <button id="menuBtn">&#9776;</button>
       <div id="modelLabel"></div>
+      <div id="tokenInfo"></div>
+      <button id="compactBtn" title="Summarize and compact this conversation">&#8635; Compact</button>
     </header>
+    <div id="statusBar"><div class="status-dots"><span></span><span></span><span></span></div><span id="statusText">Thinking&hellip;</span></div>
     <div id="chat">
       <div class="inner">
         <div id="welcome">
@@ -174,11 +270,21 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
         <select id="skillSel"></select>
         <button id="sendBtn" title="Send">&#8593;</button>
       </div>
-      <div class="disclaimer">AI can make mistakes. Verify important information.</div>
+      <div class="disclaimer">VTEC AI &mdash; Internal tool. Verify important information.</div>
     </div>
   </main>
+
+  <!-- Artifacts Panel -->
+  <aside id="artifactsPanel">
+    <div class="art-head">
+      <h3 id="artTitle">Artifact</h3>
+      <button id="artCloseBtn">&times;</button>
+    </div>
+    <div class="art-body" id="artBody"></div>
+  </aside>
 </div>
 
+<!-- ================= Settings Sheet ================= -->
 <div id="settings">
   <div class="sheet">
     <h2>Settings</h2>
@@ -190,114 +296,264 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
       <button id="cancelBtn">Cancel</button>
       <button id="saveBtn">Save</button>
     </div>
-    <div class="hint">This page is served over HTTPS, so your server URL must also be HTTPS (public domain or tunnel). Plain http:// LAN addresses are blocked by the browser. For web search to work, the model must support tool calling (e.g. qwen3, llama3.1+).</div>
+    <div class="hint">This page is served over HTTPS, so your server URL must also be HTTPS (public domain or tunnel). Plain http:// LAN addresses are blocked by the browser. Web search works automatically when the model needs current information.</div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 
-/* ================= Skills ================= */
-const SKILLS = {
-  general: {label:'General', system:'', tools:false},
-  research:{label:'Web Research',
-    system:"You are a thorough research assistant with live web access. Use the web_search tool to find current, factual information and web_fetch to read specific pages when you need detail. Run multiple searches for complex questions. Always cite your sources as plain URLs at the end of your answer.", tools:true},
-  code: {label:'Code Expert',
-    system:'You are a senior software engineer. Write clean, idiomatic, well-commented code. Explain key decisions briefly and point out edge cases, pitfalls, and how to test the result.', tools:false},
-  writing:{label:'Writing',
-    system:'You are an expert writer and editor. Match the requested tone and audience. Be concise, clear, and natural. Fix grammar and improve flow when asked. Do not use em dashes.', tools:false},
-  data: {label:'Data Analyst',
-    system:'You are a rigorous data analyst. Interpret data carefully, show your reasoning step by step, state assumptions explicitly, and summarize findings clearly with concrete numbers.', tools:false}
-};
+/* ================= Auth ================= */
+const ADMIN_USER = 'admin';
+const ADMIN_DEFAULT_PASS = 'admin123';
 
-const TOOLS = [
-  {type:'function', function:{name:'web_search',
-    description:'Search the web for current information. Returns a summary, direct answer, and related results with URLs. Use for news, facts, prices, documentation, and anything that may have changed recently.',
-    parameters:{type:'object',properties:{query:{type:'string',description:'The search query'}},required:['query']}}},
-  {type:'function', function:{name:'web_fetch',
-    description:'Fetch a web page by URL and return its main text content. Use after web_search to read a specific source in detail.',
-    parameters:{type:'object',properties:{url:{type:'string',description:'The full URL to fetch (must start with http:// or https://)'}},required:['url']}}}
-];
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
-const SUGGESTIONS = [
-  {skill:'research', t:'Search the web', d:'Find the latest news on a topic with sources'},
-  {skill:'code',     t:'Write some code', d:'Scripts, functions, and debugging help'},
-  {skill:'writing',  t:'Draft something', d:'Emails, posts, and clear explanations'},
-  {skill:'general',  t:'Attach a file', d:'Share an image or document to analyze'}
-];
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem('vtec_users') || '{}'); } catch(e) { return {}; }
+}
+function saveUsers(u) { localStorage.setItem('vtec_users', JSON.stringify(u)); }
 
-/* ================= State ================= */
+function initAdmin() {
+  const users = getUsers();
+  if (!users[ADMIN_USER]) {
+    sha256(ADMIN_DEFAULT_PASS).then(h => {
+      users[ADMIN_USER] = { hash: h, isAdmin: true, created: Date.now() };
+      saveUsers(users);
+    });
+  }
+}
+
+let currentUser = null;
+
+async function doLogin() {
+  const u = $('loginUser').value.trim().toLowerCase();
+  const p = $('loginPass').value;
+  if (!u || !p) { showLoginErr('Enter username and password'); return; }
+  const users = getUsers();
+  const rec = users[u];
+  if (!rec) { showLoginErr('Unknown user. Ask your admin to create an account.'); return; }
+  const h = await sha256(p);
+  if (h !== rec.hash) { showLoginErr('Incorrect password.'); return; }
+  currentUser = u;
+  sessionStorage.setItem('vtec_session', u);
+  enterApp();
+}
+
+function showLoginErr(msg) {
+  const el = $('loginErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function enterApp() {
+  $('loginScreen').style.display = 'none';
+  $('app').style.display = 'flex';
+  const users = getUsers();
+  if (users[currentUser] && users[currentUser].isAdmin) {
+    $('adminBtn').style.display = 'flex';
+  }
+  loadUserConvs();
+  renderAll();
+  $('input').focus();
+}
+
+function doLogout() {
+  currentUser = null;
+  sessionStorage.removeItem('vtec_session');
+  $('app').style.display = 'none';
+  $('loginScreen').style.display = 'flex';
+  $('loginUser').value = '';
+  $('loginPass').value = '';
+  $('loginErr').style.display = 'none';
+  $('adminSection').style.display = 'none';
+}
+
+function renderAdminPanel() {
+  const users = getUsers();
+  const list = $('userList');
+  list.innerHTML = '';
+  for (const name in users) {
+    const row = document.createElement('div');
+    row.className = 'user-row';
+    const tag = users[name].isAdmin ? ' (admin)' : '';
+    row.innerHTML = '<span></span>';
+    row.querySelector('span').textContent = name + tag;
+    if (name !== ADMIN_USER) {
+      const rm = document.createElement('button');
+      rm.className = 'rm-user';
+      rm.textContent = '\u00D7';
+      rm.title = 'Delete user';
+      rm.onclick = () => {
+        if (!confirm('Delete user "' + name + '" and all their chats?')) return;
+        delete users[name];
+        saveUsers(users);
+        localStorage.removeItem('vtec_chats_' + name);
+        renderAdminPanel();
+      };
+      row.appendChild(rm);
+    }
+    list.appendChild(row);
+  }
+}
+
+async function addUser() {
+  const u = $('newUser').value.trim().toLowerCase();
+  const p = $('newPass').value;
+  if (!u || !p) { alert('Enter username and password'); return; }
+  const users = getUsers();
+  if (users[u]) { alert('User already exists'); return; }
+  users[u] = { hash: await sha256(p), isAdmin: false, created: Date.now() };
+  saveUsers(users);
+  $('newUser').value = '';
+  $('newPass').value = '';
+  renderAdminPanel();
+}
+
+/* ================= Per-user state ================= */
 const settings = {
   server: localStorage.getItem('oc_server') || 'http://192.168.1.192:11434',
   model:  localStorage.getItem('oc_model')  || 'qwen3.8-vision'
 };
 let skillKey = localStorage.getItem('oc_skill') || 'general';
-if(!SKILLS[skillKey]) skillKey = 'general';
+if (!SKILLS[skillKey]) skillKey = 'general';
 let convs = {};
-try { convs = JSON.parse(localStorage.getItem('oc_convs') || '{}'); } catch(e){ convs = {}; }
-let activeId = localStorage.getItem('oc_active') || null;
-if(activeId && !convs[activeId]) activeId = null;
-let pending = []; // {kind:'image'|'file', name, data}
+let activeId = null;
+let pending = [];
 let controller = null;
+let lastTokens = { prompt: 0, completion: 0 };
 
-function getConv(){
-  if(!activeId || !convs[activeId]){
+function userConvKey() { return 'vtec_chats_' + currentUser; }
+function userActiveKey() { return 'vtec_active_' + currentUser; }
+
+function loadUserConvs() {
+  try { convs = JSON.parse(localStorage.getItem(userConvKey()) || '{}'); } catch(e) { convs = {}; }
+  activeId = localStorage.getItem(userActiveKey()) || null;
+  if (activeId && !convs[activeId]) activeId = null;
+}
+
+function persist() {
+  if (!currentUser) return;
+  try {
+    localStorage.setItem(userConvKey(), JSON.stringify(convs));
+    localStorage.setItem(userActiveKey(), activeId || '');
+  } catch(e) {
+    for (const id in convs) for (const m of convs[id].messages) delete m.images;
+    try { localStorage.setItem(userConvKey(), JSON.stringify(convs)); } catch(_) {}
+  }
+}
+
+function getConv() {
+  if (!activeId || !convs[activeId]) {
     activeId = 'c' + Date.now();
-    convs[activeId] = {id:activeId, title:'', messages:[], created:Date.now()};
+    convs[activeId] = { id: activeId, title: '', messages: [], created: Date.now() };
   }
   return convs[activeId];
 }
-function persist(){
-  try {
-    localStorage.setItem('oc_convs', JSON.stringify(convs));
-    localStorage.setItem('oc_active', activeId || '');
-  } catch(e) {
-    for(const id in convs) for(const m of convs[id].messages) delete m.images;
-    try { localStorage.setItem('oc_convs', JSON.stringify(convs)); } catch(_){}
-  }
-}
+
+/* ================= Skills & Tools ================= */
+const SKILLS = {
+  general: { label: 'General', system: '', tools: true },
+  research: { label: 'Web Research',
+    system: "You are a thorough research assistant with live web access. Use the web_search tool to find current, factual information and web_fetch to read specific pages when you need detail. Run multiple searches for complex questions. Always cite your sources as plain URLs at the end of your answer.", tools: true },
+  code: { label: 'Code Expert',
+    system: 'You are a senior software engineer. Write clean, idiomatic, well-commented code. Explain key decisions briefly and point out edge cases, pitfalls, and how to test the result. When you write JavaScript code, keep it self-contained so it can be run directly in a browser console.', tools: true },
+  writing: { label: 'Writing',
+    system: 'You are an expert writer and editor. Match the requested tone and audience. Be concise, clear, and natural. Fix grammar and improve flow when asked. Do not use em dashes.', tools: true },
+  data: { label: 'Data Analyst',
+    system: 'You are a rigorous data analyst. Interpret data carefully, show your reasoning step by step, state assumptions explicitly, and summarize findings clearly with concrete numbers.', tools: true }
+};
+
+const TOOLS = [
+  { type: 'function', function: { name: 'web_search',
+    description: 'Search the web for current information. Returns a summary, direct answer, and related results with URLs. Use for news, facts, prices, documentation, and anything that may have changed recently.',
+    parameters: { type: 'object', properties: { query: { type: 'string', description: 'The search query' } }, required: ['query'] } } },
+  { type: 'function', function: { name: 'web_fetch',
+    description: 'Fetch a web page by URL and return its main text content. Use after web_search to read a specific source in detail.',
+    parameters: { type: 'object', properties: { url: { type: 'string', description: 'The full URL to fetch (must start with http:// or https://)' } }, required: ['url'] } } }
+];
+
+const SUGGESTIONS = [
+  { skill: 'research', t: 'Search the web', d: 'Find the latest news on a topic with sources' },
+  { skill: 'code',     t: 'Write some code', d: 'Scripts, functions, and debugging help' },
+  { skill: 'writing',  t: 'Draft something', d: 'Emails, posts, and clear explanations' },
+  { skill: 'general',  t: 'Attach a file', d: 'Share an image or document to analyze' }
+];
 
 /* ================= Helpers ================= */
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function scroll(){ const box = $('chat'); box.scrollTop = box.scrollHeight; }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function scroll() { const box = $('chat'); box.scrollTop = box.scrollHeight; }
 
-function md(src){
+function parseThinking(raw) {
+  let thinking = '';
+  let content = raw;
+  let isInThink = false;
+  const re = /think([\s\S]*?)\/think/g;
+  let m;
+  while ((m = re.exec(raw)) !== null) { thinking += m[1] + '\n'; }
+  content = raw.replace(re, '').trim();
+  const opens = (raw.match(/think/g) || []).length;
+  const closes = (raw.match(/\/think/g) || []).length;
+  if (opens > closes) {
+    isInThink = true;
+    let lastEnd = 0;
+    const re2 = /think[\s\S]*?\/think/g;
+    while ((m = re2.exec(raw)) !== null) lastEnd = m.index + m[0].length;
+    const remaining = raw.slice(lastEnd);
+    const oi = remaining.indexOf('think');
+    if (oi >= 0) {
+      thinking += remaining.slice(oi + 7);
+      content = raw.slice(0, lastEnd).replace(/think[\s\S]*?\/think/g, '').trim();
+    }
+  }
+  return { thinking: thinking.trim(), content: content.trim(), isInThink };
+}
+
+function md(src) {
   const blocks = [];
   src = String(src).replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
-    blocks.push({lang, code});
+    blocks.push({ lang, code });
     return '\u0000CB' + (blocks.length - 1) + '\u0000';
   });
   let html = esc(src);
-  html = html.replace(/^### (.*)$/gm,'<h4>$1</h4>').replace(/^## (.*)$/gm,'<h3>$1</h3>').replace(/^# (.*)$/gm,'<h2>$1</h2>');
-  html = html.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
-  html = html.replace(/(^|\W)\*([^*\n]+)\*/g,'$1<em>$2</em>');
-  html = html.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
-  html = html.replace(/(^|\s)(https?:\/\/[^\s<)]+)/g,'$1<a href="$2" target="_blank" rel="noopener">$2</a>');
-  html = html.replace(/`([^`\n]+)`/g,'<code>$1</code>');
-  html = html.replace(/((?:^[-*] .*(?:\n|$))+)/gm, m => '<ul>' + m.trim().split('\n').map(l => '<li>' + l.replace(/^[-*] /,'') + '</li>').join('') + '</ul>');
-  html = html.replace(/((?:^\d+\. .*(?:\n|$))+)/gm, m => '<ol>' + m.trim().split('\n').map(l => '<li>' + l.replace(/^\d+\. /,'') + '</li>').join('') + '</ol>');
-  html = html.replace(/^&gt; (.*)$/gm,'<blockquote>$1</blockquote>');
+  html = html.replace(/^### (.*)$/gm, '<h4>$1</h4>').replace(/^## (.*)$/gm, '<h3>$1</h3>').replace(/^# (.*)$/gm, '<h2>$1</h2>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/(^|\W)\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  html = html.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  html = html.replace(/(^|\s)(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  html = html.replace(/((?:^[-*] .*(?:\n|$))+)/gm, m => '<ul>' + m.trim().split('\n').map(l => '<li>' + l.replace(/^[-*] /, '') + '</li>').join('') + '</ul>');
+  html = html.replace(/((?:^\d+\. .*(?:\n|$))+)/gm, m => '<ol>' + m.trim().split('\n').map(l => '<li>' + l.replace(/^\d+\. /, '') + '</li>').join('') + '</ol>');
+  html = html.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>');
   html = html.split(/\n{2,}/).map(block => {
     const b = block.trim();
-    if(!b) return '';
-    if(/^<(h\d|ul|ol|pre|blockquote|div)/.test(b)) return b;
-    return '<p>' + b.replace(/\n/g,'<br>') + '</p>';
+    if (!b) return '';
+    if (/^<(h\d|ul|ol|pre|blockquote|div)/.test(b)) return b;
+    return '<p>' + b.replace(/\n/g, '<br>') + '</p>';
   }).join('');
   html = html.replace(/\u0000CB(\d+)\u0000/g, (m, i) => {
     const cb = blocks[+i];
+    const isHtml = /<(!DOCTYPE|html|head|body)/i.test(cb.code);
+    const isJs = (cb.lang === 'js' || cb.lang === 'javascript') && cb.code.split('\n').length > 3;
+    let actions = '<button class="copybtn" data-code="' + esc(cb.code).replace(/"/g, '&quot;') + '">Copy</button>';
+    if (isJs) actions += '<button class="runbtn" data-run="' + esc(cb.code).replace(/"/g, '&quot;') + '">Run</button>';
+    if (isHtml) actions += '<button class="openbtn" data-html="' + esc(cb.code).replace(/"/g, '&quot;') + '">Open</button>';
     return '<div class="codeblock"><div class="codehead"><span>' + (cb.lang || 'code') +
-      '</span><button class="copybtn" data-code="' + esc(cb.code).replace(/"/g,'&quot;') + '">Copy</button></div><pre><code>' +
-      esc(cb.code) + '</code></pre></div>';
+      '</span><span class="actions">' + actions + '</span></div><pre><code>' +
+      esc(cb.code) + '</code></pre><div class="code-output"></div></div>';
   });
   return html;
 }
 
 /* ================= Rendering ================= */
-function renderSidebar(){
+function renderSidebar() {
   const list = $('convList');
   list.innerHTML = '';
-  const items = Object.values(convs).sort((a,b) => b.created - a.created);
-  for(const c of items){
+  const items = Object.values(convs).sort((a, b) => b.created - a.created);
+  for (const c of items) {
     const d = document.createElement('div');
     d.className = 'conv-item' + (c.id === activeId ? ' active' : '');
     d.innerHTML = '<span></span><button class="del" title="Delete">&#10005;</button>';
@@ -305,16 +561,23 @@ function renderSidebar(){
     d.onclick = () => { activeId = c.id; persist(); renderAll(); closeSidebar(); };
     d.querySelector('.del').onclick = e => {
       e.stopPropagation();
-      if(!confirm('Delete this chat?')) return;
+      if (!confirm('Delete this chat?')) return;
       delete convs[c.id];
-      if(activeId === c.id) activeId = null;
+      if (activeId === c.id) activeId = null;
       persist(); renderAll();
     };
     list.appendChild(d);
   }
 }
 
-function toolCardHtml(t, running){
+function thinkHtml(thinking, running) {
+  if (!thinking) return '';
+  return '<div class="think-section"><details' + (running ? ' open' : '') + '><summary>&#129504; Thinking' +
+    (running ? '<span class="st">working&hellip;</span>' : '<span class="st">\u25BE</span>') +
+    '</summary><div class="think-body">' + esc(thinking) + '</div></details></div>';
+}
+
+function toolCardHtml(t, running) {
   const icon = t.name === 'web_search' ? '&#128269;' : '&#127760;';
   const title = t.name === 'web_search'
     ? 'Web search: \u201C' + (t.args && t.args.query || '') + '\u201D'
@@ -325,30 +588,31 @@ function toolCardHtml(t, running){
     '</summary><pre>' + esc(body) + '</pre></details>';
 }
 
-function renderMessages(){
+function renderMessages() {
   const conv = getConv();
   const box = $('messages');
   $('welcome').style.display = conv.messages.length ? 'none' : 'flex';
   box.innerHTML = '';
-  for(const m of conv.messages){
-    if(m.role === 'user'){
+  for (const m of conv.messages) {
+    if (m.role === 'user') {
       const d = document.createElement('div');
       d.className = 'msg user';
       let inner = '';
-      if(m.images) for(const b64 of m.images)
+      if (m.images) for (const b64 of m.images)
         inner += '<img class="att-img" src="data:image/jpeg;base64,' + b64 + '" onclick="window.open(this.src)">';
-      if(m.files) for(const f of m.files)
+      if (m.files) for (const f of m.files)
         inner += '<span class="file-chip">&#128196; ' + esc(f.name) + '</span>';
-      if(m.content) inner += '<div class="txt">' + md(m.content) + '</div>';
+      if (m.content) inner += '<div class="txt">' + md(m.content) + '</div>';
       d.innerHTML = '<div class="bubble">' + inner + '</div>';
       box.appendChild(d);
     } else {
       const d = document.createElement('div');
       d.className = 'msg assistant';
       let inner = '<div class="who">' + esc(settings.model) + '</div>';
-      if(m.tools && m.tools.length)
+      if (m.thinking) inner += thinkHtml(m.thinking, false);
+      if (m.tools && m.tools.length)
         inner += '<div class="tools">' + m.tools.map(t => toolCardHtml(t, false)).join('') + '</div>';
-      if(m.content) inner += '<div class="content">' + md(m.content) + '</div>';
+      if (m.content) inner += '<div class="content">' + md(m.content) + '</div>';
       d.innerHTML = inner;
       box.appendChild(d);
     }
@@ -356,42 +620,66 @@ function renderMessages(){
   scroll();
 }
 
-function renderAll(){
+function updateTokenInfo() {
+  const el = $('tokenInfo');
+  if (lastTokens.prompt || lastTokens.completion) {
+    el.innerHTML = '&#128200; ' + lastTokens.prompt + ' in / ' + lastTokens.completion + ' out';
+  } else {
+    el.innerHTML = '';
+  }
+  const conv = getConv();
+  const msgCount = conv.messages.length;
+  $('compactBtn').style.display = (msgCount > 8) ? 'inline-block' : 'none';
+}
+
+function renderAll() {
   renderSidebar();
   renderMessages();
+  updateTokenInfo();
   $('modelLabel').innerHTML = '<b>' + esc(settings.model) + '</b> &nbsp;\u00B7&nbsp; ' + esc(SKILLS[skillKey].label);
 }
 
+/* ================= Status Bar ================= */
+function setStatus(text, show) {
+  const bar = $('statusBar');
+  if (show) {
+    $('statusText').textContent = text;
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
 /* ================= Tools (client-side execution) ================= */
-async function webSearch(q){
+async function webSearch(q) {
   let out = '';
-  try{
-    const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&t=ollamachat');
+  try {
+    const r = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(q) + '&format=json&no_html=1&skip_disambig=1&t=vteca');
     const j = await r.json();
-    if(j.Answer) out += 'Direct answer: ' + j.Answer + '\n';
-    if(j.AbstractText) out += 'Summary: ' + j.AbstractText + '\n';
+    if (j.Answer) out += 'Direct answer: ' + j.Answer + '\n';
+    if (j.AbstractText) out += 'Summary: ' + j.AbstractText + '\n';
     const topics = [];
-    for(const t of (j.RelatedTopics || [])){
-      if(t.Text && t.FirstURL) topics.push(t.Text + ' (' + t.FirstURL + ')');
-      else if(t.Topics) for(const s of t.Topics) if(s.Text && s.FirstURL) topics.push(s.Text + ' (' + s.FirstURL + ')');
+    for (const t of (j.RelatedTopics || [])) {
+      if (t.Text && t.FirstURL) topics.push(t.Text + ' (' + t.FirstURL + ')');
+      else if (t.Topics) for (const s of t.Topics) if (s.Text && s.FirstURL) topics.push(s.Text + ' (' + s.FirstURL + ')');
     }
-    if(topics.length) out += '\nRelated results:\n' + topics.slice(0, 8).map((t, i) => (i+1) + '. ' + t).join('\n');
-  }catch(e){}
-  if(!out.trim()){
-    try{
+    if (topics.length) out += '\nRelated results:\n' + topics.slice(0, 8).map((t, i) => (i + 1) + '. ' + t).join('\n');
+  } catch (e) {}
+  if (!out.trim()) {
+    try {
       const r = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&format=json&origin=*');
       const j = await r.json();
       out = 'Wikipedia results:\n' + (j.query.search || []).slice(0, 6).map((s, i) =>
-        (i+1) + '. ' + s.title + ' \u2014 ' + s.snippet.replace(/<[^>]+>/g,'') +
-        ' (https://en.wikipedia.org/wiki/' + encodeURIComponent(s.title.replace(/ /g,'_')) + ')').join('\n');
-    }catch(e){ out = 'Search failed: ' + e.message; }
+        (i + 1) + '. ' + s.title + ' \u2014 ' + s.snippet.replace(/<[^>]+>/g, '') +
+        ' (https://en.wikipedia.org/wiki/' + encodeURIComponent(s.title.replace(/ /g, '_')) + ')').join('\n');
+    } catch (e) { out = 'Search failed: ' + e.message; }
   }
   return out.slice(0, 6000);
 }
 
-async function webFetch(url){
+async function webFetch(url) {
   const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
-  if(!r.ok) throw new Error('HTTP ' + r.status);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
   const html = await r.text();
   const doc = new DOMParser().parseFromString(html, 'text/html');
   doc.querySelectorAll('script,style,noscript,svg,nav,footer,header').forEach(n => n.remove());
@@ -399,121 +687,195 @@ async function webFetch(url){
   return (text || '(no text content found)').slice(0, 8000);
 }
 
-async function execTool(name, args){
-  if(name === 'web_search') return await webSearch(args.query || '');
-  if(name === 'web_fetch')  return await webFetch(args.url || '');
+async function execTool(name, args) {
+  if (name === 'web_search') return await webSearch(args.query || '');
+  if (name === 'web_fetch') return await webFetch(args.url || '');
   return 'Unknown tool: ' + name;
 }
 
+/* ================= Code Execution ================= */
+function runJS(code) {
+  const logs = [];
+  const fakeConsole = {
+    log: (...a) => logs.push(a.map(x => typeof x === 'object' ? JSON.stringify(x, null, 2) : String(x)).join(' ')),
+    error: (...a) => logs.push('[ERROR] ' + a.join(' ')),
+    warn: (...a) => logs.push('[WARN] ' + a.join(' ')),
+    info: (...a) => logs.push('[INFO] ' + a.join(' '))
+  };
+  try {
+    const fn = new Function('console', code);
+    fn(fakeConsole);
+    return { output: logs.join('\n') || '(no output)', error: null };
+  } catch (e) {
+    return { output: logs.join('\n'), error: e.message };
+  }
+}
+
+/* ================= Artifacts Panel ================= */
+function openArtifact(title, html) {
+  $('artTitle').textContent = title;
+  const body = $('artBody');
+  body.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.sandbox = 'allow-scripts';
+  iframe.srcdoc = html;
+  body.appendChild(iframe);
+  $('artifactsPanel').classList.add('open');
+}
+
+function openCodeArtifact(title, code) {
+  $('artTitle').textContent = title;
+  const body = $('artBody');
+  body.innerHTML = '';
+  const pre = document.createElement('div');
+  pre.className = 'art-code';
+  const lines = code.split('\n');
+  pre.innerHTML = lines.map((l, i) => '<span class="ln">' + (i + 1) + '</span>' + esc(l)).join('\n');
+  body.appendChild(pre);
+  $('artifactsPanel').classList.add('open');
+}
+
 /* ================= API ================= */
-function buildApiMessages(conv, skill){
+function buildApiMessages(conv, skill) {
   const arr = [];
-  if(skill.system) arr.push({role:'system', content:skill.system});
-  for(const m of conv.messages){
-    if(m.role === 'user'){
+  if (skill.system) arr.push({ role: 'system', content: skill.system });
+  for (const m of conv.messages) {
+    if (m.role === 'user') {
       let c = m.content || '';
-      if(m.files) for(const f of m.files)
+      if (m.files) for (const f of m.files)
         c += (c ? '\n\n' : '') + '[Attached file: ' + f.name + ']\n```\n' + f.content + '\n```';
-      const msg = {role:'user', content:c};
-      if(m.images && m.images.length) msg.images = m.images;
+      const msg = { role: 'user', content: c };
+      if (m.images && m.images.length) msg.images = m.images;
       arr.push(msg);
     } else {
-      if(m.tools && m.tools.length){
-        arr.push({role:'assistant', content:'', tool_calls:m.tools.map(t => ({function:{name:t.name, arguments:t.args}}))});
-        for(const t of m.tools) arr.push({role:'tool', name:t.name, content:String(t.result || '').slice(0, 12000)});
+      if (m.tools && m.tools.length) {
+        arr.push({ role: 'assistant', content: '', tool_calls: m.tools.map(t => ({ function: { name: t.name, arguments: t.args } })) });
+        for (const t of m.tools) arr.push({ role: 'tool', name: t.name, content: String(t.result || '').slice(0, 12000) });
       }
-      if(m.content) arr.push({role:'assistant', content:m.content});
+      if (m.content) arr.push({ role: 'assistant', content: m.content });
     }
   }
   return arr;
 }
 
-async function streamOnce(apiMsgs, useTools, el){
-  const body = {model:settings.model, messages:apiMsgs, stream:true};
-  if(useTools) body.tools = TOOLS;
-  const res = await fetch(settings.server.replace(/\/+$/,'') + '/api/chat', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body), signal:controller.signal
+async function streamOnce(apiMsgs, useTools, el) {
+  const body = { model: settings.model, messages: apiMsgs, stream: true };
+  if (useTools) body.tools = TOOLS;
+  const res = await fetch(settings.server.replace(/\/+$/, '') + '/api/chat', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: controller.signal
   });
-  if(!res.ok){
+  if (!res.ok) {
     const t = await res.text();
     throw new Error('HTTP ' + res.status + (t ? ' \u2014 ' + t.slice(0, 200) : ''));
   }
   const reader = res.body.getReader();
   const dec = new TextDecoder();
-  let buf = '', content = '', toolCalls = [];
+  let buf = '', rawContent = '', toolCalls = [];
+  let promptTokens = 0, completionTokens = 0;
   const cdiv = el.querySelector('.content');
-  while(true){
-    const {done, value} = await reader.read();
-    if(done) break;
-    buf += dec.decode(value, {stream:true});
+  const tdiv = el.querySelector('.think-section');
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
     let i;
-    while((i = buf.indexOf('\n')) >= 0){
+    while ((i = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, i).trim();
       buf = buf.slice(i + 1);
-      if(!line) continue;
+      if (!line) continue;
       const j = JSON.parse(line);
-      if(j.error) throw new Error(j.error);
+      if (j.error) throw new Error(j.error);
       const m = j.message || {};
-      if(m.content){
-        content += m.content;
-        cdiv.innerHTML = md(content) + '<span class="cursor"></span>';
+      if (m.content) {
+        rawContent += m.content;
+        const parsed = parseThinking(rawContent);
+        if (parsed.thinking) {
+          if (tdiv) {
+            tdiv.querySelector('.think-body').textContent = parsed.thinking;
+            if (parsed.isInThink) tdiv.querySelector('summary .st').textContent = 'working\u2026';
+            else tdiv.querySelector('summary .st').textContent = '\u25BE';
+          } else {
+            const td = document.createElement('div');
+            td.className = 'think-section';
+            td.innerHTML = thinkHtml(parsed.thinking, parsed.isInThink);
+            el.insertBefore(td, el.querySelector('.tools'));
+          }
+        }
+        cdiv.innerHTML = md(parsed.content) + '<span class="cursor"></span>';
+        setStatus(parsed.isInThink ? 'Thinking\u2026' : 'Generating\u2026', true);
         scroll();
       }
-      if(m.tool_calls) for(const tc of m.tool_calls) toolCalls.push(tc);
-      if(j.done) break;
+      if (m.tool_calls) for (const tc of m.tool_calls) toolCalls.push(tc);
+      if (j.done) {
+        promptTokens = j.prompt_eval_count || 0;
+        completionTokens = j.eval_count || 0;
+        break;
+      }
     }
   }
-  cdiv.innerHTML = md(content);
-  return {content, toolCalls};
+
+  const finalParsed = parseThinking(rawContent);
+  cdiv.innerHTML = md(finalParsed.content);
+  if (finalParsed.thinking) {
+    const existing = el.querySelector('.think-section');
+    if (existing) existing.querySelector('.think-body').textContent = finalParsed.thinking;
+  }
+  lastTokens = { prompt: promptTokens, completion: completionTokens };
+  updateTokenInfo();
+  return { content: finalParsed.content, thinking: finalParsed.thinking, toolCalls };
 }
 
-async function runLoop(el, useTools){
+async function runLoop(el, useTools) {
   const conv = getConv();
   const skill = SKILLS[skillKey];
   let apiMsgs = buildApiMessages(conv, skill);
-  let full = '';
+  let fullContent = '', fullThinking = '';
   const tools = [];
-  for(let iter = 0; iter < 5; iter++){
-    const {content, toolCalls} = await streamOnce(apiMsgs, useTools, el);
-    full += content;
-    if(!toolCalls.length) break;
-    for(const tc of toolCalls){
-      tools.push({name:tc.function.name, args:tc.function.arguments || {}, result:''});
+  for (let iter = 0; iter < 5; iter++) {
+    setStatus('Thinking\u2026', true);
+    const { content, thinking, toolCalls } = await streamOnce(apiMsgs, useTools, el);
+    fullContent += content;
+    if (thinking) fullThinking += (fullThinking ? '\n' : '') + thinking;
+    if (!toolCalls.length) break;
+    for (const tc of toolCalls) {
+      tools.push({ name: tc.function.name, args: tc.function.arguments || {}, result: '' });
       el.querySelector('.tools').innerHTML = tools.map(t => toolCardHtml(t, t.result === '')).join('');
       scroll();
     }
-    apiMsgs.push({role:'assistant', content:'', tool_calls:toolCalls});
-    for(const tc of toolCalls){
+    apiMsgs.push({ role: 'assistant', content: '', tool_calls: toolCalls });
+    for (const tc of toolCalls) {
       const step = tools.find(t => t.result === '');
+      setStatus(tc.function.name === 'web_search' ? 'Searching the web\u2026' : 'Fetching page\u2026', true);
       try { step.result = await execTool(tc.function.name, tc.function.arguments || {}); }
-      catch(e) { step.result = 'Error: ' + e.message; }
+      catch (e) { step.result = 'Error: ' + e.message; }
       el.querySelector('.tools').innerHTML = tools.map(t => toolCardHtml(t, t.result === '')).join('');
       scroll();
-      apiMsgs.push({role:'tool', name:tc.function.name, content:String(step.result).slice(0, 12000)});
+      apiMsgs.push({ role: 'tool', name: tc.function.name, content: String(step.result).slice(0, 12000) });
     }
   }
-  conv.messages.push({role:'assistant', content:full, tools});
+  conv.messages.push({ role: 'assistant', content: fullContent, thinking: fullThinking, tools });
   persist();
 }
 
-function setSending(on){
+function setSending(on) {
   $('sendBtn').innerHTML = on ? '&#9632;' : '&#8593;';
   $('sendBtn').title = on ? 'Stop' : 'Send';
   $('input').disabled = on;
 }
 
-async function send(){
+async function send() {
   const text = $('input').value.trim();
-  if((!text && !pending.length) || controller) return;
+  if ((!text && !pending.length) || controller) return;
   $('input').value = ''; autoGrow();
 
   const conv = getConv();
-  const userMsg = {role:'user', content:text};
-  if(pending.some(p => p.kind === 'image')) userMsg.images = pending.filter(p => p.kind === 'image').map(p => p.data);
-  if(pending.some(p => p.kind === 'file'))  userMsg.files  = pending.filter(p => p.kind === 'file').map(p => ({name:p.name, content:p.data}));
+  const userMsg = { role: 'user', content: text };
+  if (pending.some(p => p.kind === 'image')) userMsg.images = pending.filter(p => p.kind === 'image').map(p => p.data);
+  if (pending.some(p => p.kind === 'file')) userMsg.files = pending.filter(p => p.kind === 'file').map(p => ({ name: p.name, content: p.data }));
   conv.messages.push(userMsg);
-  if(!conv.title) conv.title = (text || 'Attachment').slice(0, 42);
+  if (!conv.title) conv.title = (text || 'Attachment').slice(0, 42);
   pending = []; renderPending(); persist(); renderSidebar(); renderMessages();
 
   const el = document.createElement('div');
@@ -524,13 +886,12 @@ async function send(){
 
   setSending(true);
   controller = new AbortController();
-  let useTools = SKILLS[skillKey].tools;
-  try{
-    for(let attempt = 0; attempt < 2; attempt++){
+  let useTools = true;
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try { await runLoop(el, useTools); break; }
-      catch(err){
-        // Model doesn't support tools -> retry once without them.
-        if(/tool/i.test(err.message) && useTools){
+      catch (err) {
+        if (/tool/i.test(err.message) && useTools) {
           useTools = false;
           el.querySelector('.content').innerHTML = '';
           el.querySelector('.tools').innerHTML = '';
@@ -539,29 +900,61 @@ async function send(){
         throw err;
       }
     }
-  }catch(err){
-    if(err.name === 'AbortError'){
-      const conv2 = getConv();
-      const last = conv2.messages[conv2.messages.length - 1];
-      if(last && last.role === 'assistant') persist();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      persist();
     } else {
       el.querySelector('.content').innerHTML = '<span class="err">&#9888;&#65039; ' + esc(err.message) + '</span>';
     }
-  }finally{
+  } finally {
     controller = null;
     setSending(false);
+    setStatus('', false);
     renderAll();
   }
 }
 
+/* ================= Compact ================= */
+async function compactConversation() {
+  const conv = getConv();
+  if (conv.messages.length < 4) { alert('Not enough messages to compact.'); return; }
+  if (!confirm('Summarize this conversation? This will replace the history with a summary to save context.')) return;
+
+  const summaryPrompt = 'Summarize the conversation above in a concise, structured format. Include: key topics discussed, decisions made, code written (with brief descriptions), and any outstanding questions. Keep it under 500 words. Start with "## Conversation Summary".';
+  const apiMsgs = buildApiMessages(conv, SKILLS[skillKey]);
+  apiMsgs.push({ role: 'user', content: summaryPrompt });
+
+  setStatus('Compacting conversation\u2026', true);
+  try {
+    const res = await fetch(settings.server.replace(/\/+$/, '') + '/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: settings.model, messages: apiMsgs, stream: false })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    const summary = (j.message && j.message.content) || 'Summary failed.';
+    const lastMsgs = conv.messages.slice(-2);
+    conv.messages = [
+      { role: 'user', content: '[System] This conversation was compacted. Summary of prior context:\n\n' + summary },
+      { role: 'assistant', content: 'Understood. I have the context from our previous conversation. How can I help you continue?' }
+    ].concat(lastMsgs);
+    persist();
+    renderAll();
+  } catch (e) {
+    alert('Compact failed: ' + e.message);
+  } finally {
+    setStatus('', false);
+  }
+}
+
 /* ================= Attachments ================= */
-function renderPending(){
+function renderPending() {
   const box = $('pending');
   box.innerHTML = '';
   pending.forEach((p, idx) => {
     const d = document.createElement('div');
     d.className = 'pend';
-    if(p.kind === 'image'){
+    if (p.kind === 'image') {
       const img = document.createElement('img');
       img.src = 'data:image/jpeg;base64,' + p.data;
       d.appendChild(img);
@@ -579,28 +972,43 @@ function renderPending(){
 }
 
 /* ================= UI wiring ================= */
-function autoGrow(){
+function autoGrow() {
   const t = $('input');
   t.style.height = 'auto';
   t.style.height = Math.min(t.scrollHeight, 140) + 'px';
 }
 
-function closeSidebar(){
+function closeSidebar() {
   $('sidebar').classList.remove('open');
   $('scrim').classList.remove('show');
 }
 
+$('loginBtn').addEventListener('click', doLogin);
+$('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginPass').focus(); });
+$('logoutBtn').addEventListener('click', doLogout);
+$('adminBtn').addEventListener('click', () => {
+  const sec = $('adminSection');
+  if (sec.style.display === 'none' || !sec.style.display) {
+    sec.style.display = 'block';
+    renderAdminPanel();
+  } else {
+    sec.style.display = 'none';
+  }
+});
+$('addUserBtn').addEventListener('click', addUser);
+
 $('sendBtn').addEventListener('click', () => {
-  if(controller) controller.abort();
+  if (controller) controller.abort();
   else send();
 });
 $('input').addEventListener('keydown', e => {
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 });
 $('input').addEventListener('input', autoGrow);
 
 $('newChatBtn').addEventListener('click', () => {
-  if(controller) return;
+  if (controller) return;
   activeId = null;
   persist(); renderAll(); closeSidebar();
   $('input').focus();
@@ -608,19 +1016,19 @@ $('newChatBtn').addEventListener('click', () => {
 
 $('attachBtn').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', async e => {
-  for(const file of e.target.files){
-    if(file.type.startsWith('image/')){
-      if(file.size > 10 * 1024 * 1024){ alert(file.name + ' is over 10 MB \u2014 too large to attach.'); continue; }
+  for (const file of e.target.files) {
+    if (file.type.startsWith('image/')) {
+      if (file.size > 10 * 1024 * 1024) { alert(file.name + ' is over 10 MB \u2014 too large to attach.'); continue; }
       const dataUrl = await new Promise(res => {
         const r = new FileReader();
         r.onload = () => res(r.result);
         r.readAsDataURL(file);
       });
-      pending.push({kind:'image', name:file.name, data:dataUrl.split(',')[1]});
+      pending.push({ kind: 'image', name: file.name, data: dataUrl.split(',')[1] });
     } else {
-      if(file.size > 500 * 1024){ alert(file.name + ' is over 500 KB \u2014 too large to inline.'); continue; }
+      if (file.size > 500 * 1024) { alert(file.name + ' is over 500 KB \u2014 too large to inline.'); continue; }
       const text = await file.text();
-      pending.push({kind:'file', name:file.name, data:text});
+      pending.push({ kind: 'file', name: file.name, data: text });
     }
   }
   e.target.value = '';
@@ -642,16 +1050,19 @@ $('settingsBtn').addEventListener('click', () => {
 $('cancelBtn').addEventListener('click', () => $('settings').classList.remove('open'));
 $('saveBtn').addEventListener('click', () => {
   settings.server = $('serverUrl').value.trim() || settings.server;
-  settings.model  = $('model').value.trim()  || settings.model;
+  settings.model = $('model').value.trim() || settings.model;
   localStorage.setItem('oc_server', settings.server);
   localStorage.setItem('oc_model', settings.model);
   $('settings').classList.remove('open');
   renderAll();
 });
 
+$('compactBtn').addEventListener('click', compactConversation);
+$('artCloseBtn').addEventListener('click', () => $('artifactsPanel').classList.remove('open'));
+
 // Skill selector
 const sel = $('skillSel');
-for(const k in SKILLS){
+for (const k in SKILLS) {
   const o = document.createElement('option');
   o.value = k; o.textContent = SKILLS[k].label;
   sel.appendChild(o);
@@ -673,27 +1084,36 @@ SUGGESTIONS.forEach(s => {
     skillKey = s.skill; sel.value = s.skill;
     localStorage.setItem('oc_skill', skillKey);
     renderAll();
-    if(s.skill === 'research'){
-      $('input').value = 'Search the web for: ';
-    } else if(s.skill === 'code'){
-      $('input').value = 'Write code that: ';
-    } else if(s.skill === 'writing'){
-      $('input').value = 'Help me write: ';
-    } else {
-      $('attachBtn').click();
-    }
+    if (s.skill === 'research') $('input').value = 'Search the web for: ';
+    else if (s.skill === 'code') $('input').value = 'Write code that: ';
+    else if (s.skill === 'writing') $('input').value = 'Help me write: ';
+    else $('attachBtn').click();
     $('input').focus();
   };
   grid.appendChild(d);
 });
 
-// Copy buttons (delegated)
+// Delegated clicks: copy, run, open
 $('messages').addEventListener('click', e => {
-  const b = e.target.closest('.copybtn');
-  if(b){
-    navigator.clipboard.writeText(b.dataset.code);
-    b.textContent = 'Copied!';
-    setTimeout(() => b.textContent = 'Copy', 1500);
+  const cb = e.target.closest('.copybtn');
+  if (cb) {
+    navigator.clipboard.writeText(cb.dataset.code);
+    cb.textContent = 'Copied!';
+    setTimeout(() => cb.textContent = 'Copy', 1500);
+    return;
+  }
+  const rb = e.target.closest('.runbtn');
+  if (rb) {
+    const result = runJS(rb.dataset.run);
+    const out = rb.closest('.codeblock').querySelector('.code-output');
+    out.innerHTML = (result.output ? esc(result.output) : '') + (result.error ? '\n<span class="err-line">' + esc(result.error) + '</span>' : '');
+    out.classList.add('show');
+    return;
+  }
+  const ob = e.target.closest('.openbtn');
+  if (ob) {
+    openArtifact('HTML Preview', ob.dataset.html);
+    return;
   }
 });
 
@@ -701,7 +1121,13 @@ $('messages').addEventListener('click', e => {
 const h = new Date().getHours();
 $('greet').textContent = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 
-renderAll();
+/* ================= Init ================= */
+initAdmin();
+const savedSession = sessionStorage.getItem('vtec_session');
+if (savedSession && getUsers()[savedSession]) {
+  currentUser = savedSession;
+  enterApp();
+}
 </script>
 </body>
 </html>
