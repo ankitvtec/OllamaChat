@@ -202,8 +202,10 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .sheet{background:var(--white);border-radius:16px;padding:22px;width:min(92vw,400px);box-shadow:0 12px 40px rgba(0,0,0,.2);}
 .sheet h2{font-size:17px;margin-bottom:14px;font-family:Georgia,serif;}
 .sheet label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;}
-.sheet input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14.5px;}
-.sheet input:focus{outline:none;border-color:var(--accent);}
+.sheet input,.sheet select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 11px;font-size:14.5px;}
+.sheet input:focus,.sheet select:focus{outline:none;border-color:var(--accent);}
+.sheet .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sheet .grid2 label{margin-top:0;}
 .sheet .hint{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.5;background:var(--code);border-radius:8px;padding:9px 11px;}
 .sheet .row{display:flex;gap:8px;margin-top:18px;}
 .sheet button{flex:1;padding:10px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;}
@@ -316,11 +318,33 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
     <input id="serverUrl" placeholder="https://your-server.com:11434">
     <label>Model</label>
     <input id="model" placeholder="qwen3.8-vision">
+    <div class="grid2">
+      <div>
+        <label>Context size</label>
+        <select id="ctx">
+          <option value="4096">4K tokens</option>
+          <option value="8192">8K tokens</option>
+          <option value="16384">16K tokens</option>
+          <option value="32768">32K tokens</option>
+        </select>
+      </div>
+      <div>
+        <label>Temperature</label>
+        <input id="temp" type="number" min="0" max="1.5" step="0.1">
+      </div>
+    </div>
+    <label>Thinking effort</label>
+    <select id="think">
+      <option value="off">Off</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
     <div class="row">
       <button id="cancelBtn">Cancel</button>
       <button id="saveBtn">Save</button>
     </div>
-    <div class="hint">This page is served over HTTPS, so your server URL must also be HTTPS (public domain or tunnel). Plain http:// LAN addresses are blocked by the browser. Web search works automatically when the model needs current information.</div>
+    <div class="hint">Context size controls how much of the conversation the model can remember (larger = better recall, slower on small GPUs). Note: 32K needs a lot of GPU memory — if requests fail with an HTTP 500, drop to 16K. Temperature: lower = more focused, higher = more creative. Thinking effort makes the model reason step by step before answering (needs a thinking-capable model; ignored otherwise). This page is served over HTTPS, so your server URL must also be HTTPS (public domain or tunnel). Plain http:// LAN addresses are blocked by the browser. Web search works automatically when the model needs current information.</div>
   </div>
 </div>
 
@@ -477,6 +501,8 @@ async function addUser() {
 }
 
 /* ================= Skills & Tools ================= */
+const BASE_PROMPT = "You are VTEC AI, a precise, capable expert assistant. Work like a top-tier model: understand the real intent behind the request, reason carefully before answering, and be thorough rather than brief by default.\n\nGuidelines:\n- Answer in the user's language. Use clean Markdown: headings for multi-part answers, lists for steps or items, and fenced code blocks with a language tag for any code.\n- For complex or multi-step problems, work through the reasoning explicitly before giving the final result. Show your work when it helps the user verify you.\n- Be concrete and specific. Prefer real numbers, real names, real code over vague generalities. If you are unsure of a fact, say so instead of guessing.\n- When the user attaches files or images, analyze them in depth and reference specific parts of them in your answer.\n- If you have web tools available and the question needs current or external information (news, prices, recent events, documentation), use them - do not answer from stale knowledge alone. Cite sources as plain URLs at the end of the answer.\n- Never pad answers with filler. Every sentence should carry information.";
+
 const SKILLS = {
   general: { label: 'General', system: '', tools: true },
   research: { label: 'Web Research',
@@ -508,8 +534,15 @@ const SUGGESTIONS = [
 /* ================= Per-user state ================= */
 const settings = {
   server: localStorage.getItem('oc_server') || 'http://192.168.1.192:11434',
-  model:  localStorage.getItem('oc_model')  || 'qwen3.8-vision'
+  model:  localStorage.getItem('oc_model')  || 'qwen3.8-vision',
+  ctx:    parseInt(localStorage.getItem('oc_ctx')   || '16384', 10),
+  temp:   parseFloat(localStorage.getItem('oc_temp') || '0.7'),
+  think:  localStorage.getItem('oc_think') || 'medium' // off | low | medium | high
 };
+function modelOptions() {
+  const o = { num_ctx: settings.ctx, temperature: settings.temp };
+  return o;
+}
 
 /* ================= Server mode (auto-detected) ================= */
 // When the app is served from the VTEC office server (server.py), accounts and
@@ -931,7 +964,8 @@ function openCodeArtifact(title, code) {
 /* ================= API ================= */
 function buildApiMessages(conv, skill) {
   const arr = [];
-  if (skill.system) arr.push({ role: 'system', content: skill.system });
+  const sys = skill.system ? BASE_PROMPT + '\n\n' + skill.system : BASE_PROMPT;
+  arr.push({ role: 'system', content: sys });
   for (const m of conv.messages) {
     if (m.role === 'user') {
       let c = m.content || '';
@@ -956,8 +990,21 @@ function buildApiMessages(conv, skill) {
   return arr;
 }
 
+function renderThink(el, thinking, running) {
+  if (!thinking && !running) return;
+  let tdiv = el.querySelector('.think-section');
+  if (!tdiv) {
+    tdiv = document.createElement('div');
+    tdiv.className = 'think-section';
+    el.insertBefore(tdiv, el.querySelector('.tools'));
+  }
+  tdiv.innerHTML = thinkHtml(thinking, running);
+}
+
 async function streamOnce(apiMsgs, useTools, el) {
-  const body = { model: settings.model, messages: apiMsgs, stream: true };
+  const body = { model: settings.model, messages: apiMsgs, stream: true, keep_alive: '10m' };
+  body.options = modelOptions();
+  if (settings.think !== 'off') body.think = settings.think;
   if (useTools) body.tools = TOOLS;
   const res = await fetch(settings.server.replace(/\/+$/, '') + '/api/chat', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -965,14 +1012,15 @@ async function streamOnce(apiMsgs, useTools, el) {
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error('HTTP ' + res.status + (t ? ' \u2014 ' + t.slice(0, 200) : ''));
+    let msg = '';
+    try { msg = JSON.parse(t).error || ''; } catch (e) {}
+    throw new Error('HTTP ' + res.status + (msg ? ' \u2014 ' + msg : (t ? ' \u2014 ' + t.slice(0, 200) : '')));
   }
   const reader = res.body.getReader();
   const dec = new TextDecoder();
-  let buf = '', rawContent = '', toolCalls = [];
+  let buf = '', rawContent = '', nativeThink = '', toolCalls = [];
   let promptTokens = 0, completionTokens = 0;
   const cdiv = el.querySelector('.content');
-  const tdiv = el.querySelector('.think-section');
 
   while (true) {
     const { done, value } = await reader.read();
@@ -986,32 +1034,19 @@ async function streamOnce(apiMsgs, useTools, el) {
       const j = JSON.parse(line);
       if (j.error) throw new Error(j.error);
       const m = j.message || {};
+      if (m.thinking) {
+        nativeThink += m.thinking;
+        renderThink(el, nativeThink, true);
+        setStatus('Thinking\u2026', true);
+        scroll();
+      }
       if (m.content) {
         rawContent += m.content;
         const parsed = parseThinking(rawContent);
-        if (parsed.thinking) {
-          if (tdiv) {
-            tdiv.querySelector('.think-body').textContent = parsed.thinking;
-            const det = tdiv.querySelector('details');
-            const st = tdiv.querySelector('summary .st');
-            if (parsed.isInThink) {
-              st.textContent = 'working\u2026';
-              det.setAttribute('open', '');
-              if (!tdiv.querySelector('.think-live'))
-                tdiv.insertAdjacentHTML('afterbegin', '<div class="think-live"><span class="spin"></span><span>Thinking</span><span class="dots"><span></span><span></span><span></span></span></div>');
-            } else {
-              st.textContent = '\u25BE';
-              det.removeAttribute('open');
-              const live = tdiv.querySelector('.think-live');
-              if (live) live.remove();
-            }
-          } else {
-            const td = document.createElement('div');
-            td.className = 'think-section';
-            td.innerHTML = thinkHtml(parsed.thinking, parsed.isInThink);
-            el.insertBefore(td, el.querySelector('.tools'));
-          }
-        }
+        const allThink = nativeThink
+          ? nativeThink + (parsed.thinking ? '\n' + parsed.thinking : '')
+          : parsed.thinking;
+        if (allThink) renderThink(el, allThink, parsed.isInThink);
         cdiv.innerHTML = md(parsed.content) + '<span class="cursor"></span>';
         setStatus(parsed.isInThink ? 'Thinking\u2026' : 'Generating\u2026', true);
         scroll();
@@ -1026,22 +1061,14 @@ async function streamOnce(apiMsgs, useTools, el) {
   }
 
   const finalParsed = parseThinking(rawContent);
+  const finalThink = nativeThink
+    ? nativeThink + (finalParsed.thinking ? '\n' + finalParsed.thinking : '')
+    : finalParsed.thinking;
   cdiv.innerHTML = md(finalParsed.content);
-  if (finalParsed.thinking) {
-    const existing = el.querySelector('.think-section');
-    if (existing) {
-      existing.querySelector('.think-body').textContent = finalParsed.thinking;
-      const det = existing.querySelector('details');
-      if (det) det.removeAttribute('open');
-      const st = existing.querySelector('summary .st');
-      if (st) st.textContent = '\u25BE';
-      const live = existing.querySelector('.think-live');
-      if (live) live.remove();
-    }
-  }
+  if (finalThink) renderThink(el, finalThink, false);
   lastTokens = { prompt: promptTokens, completion: completionTokens };
   updateTokenInfo();
-  return { content: finalParsed.content, thinking: finalParsed.thinking, toolCalls };
+  return { content: finalParsed.content, thinking: finalThink, toolCalls };
 }
 
 async function runLoop(el, useTools) {
@@ -1154,6 +1181,7 @@ async function send() {
   setSending(true);
   controller = new AbortController();
   let useTools = true;
+  let failed = null;
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
       try { await runLoop(el, useTools); break; }
@@ -1171,13 +1199,23 @@ async function send() {
     if (err.name === 'AbortError') {
       persist();
     } else {
-      el.querySelector('.content').innerHTML = '<span class="err">&#9888;&#65039; ' + esc(err.message) + '</span>';
+      failed = err.message;
+      el.querySelector('.content').innerHTML = '<span class="err">&#9888;&#65039; ' + esc(failed) + '</span>';
     }
   } finally {
     controller = null;
     setSending(false);
     setStatus('', false);
     renderAll();
+    if (failed) {
+      // renderAll() rebuilds the list from saved messages, which drops the
+      // in-flight error bubble — re-append it so the failure stays visible.
+      const d = document.createElement('div');
+      d.className = 'msg assistant';
+      d.innerHTML = '<div class="who">' + esc(settings.model) + '</div><div class="content"><span class="err">&#9888;&#65039; ' + esc(failed) + '</span></div>';
+      $('messages').appendChild(d);
+      scroll();
+    }
   }
 }
 
@@ -1195,7 +1233,7 @@ async function compactConversation() {
   try {
     const res = await fetch(settings.server.replace(/\/+$/, '') + '/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: settings.model, messages: apiMsgs, stream: false })
+      body: JSON.stringify({ model: settings.model, messages: apiMsgs, stream: false, keep_alive: '10m', options: modelOptions() })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const j = await res.json();
@@ -1308,6 +1346,9 @@ $('scrim').addEventListener('click', closeSidebar);
 $('settingsBtn').addEventListener('click', () => {
   $('serverUrl').value = settings.server;
   $('model').value = settings.model;
+  $('ctx').value = String(settings.ctx);
+  $('temp').value = settings.temp;
+  $('think').value = settings.think;
   $('settings').classList.add('open');
   closeSidebar();
 });
@@ -1315,8 +1356,16 @@ $('cancelBtn').addEventListener('click', () => $('settings').classList.remove('o
 $('saveBtn').addEventListener('click', () => {
   settings.server = $('serverUrl').value.trim() || settings.server;
   settings.model = $('model').value.trim() || settings.model;
+  const ctx = parseInt($('ctx').value, 10);
+  if (ctx) settings.ctx = ctx;
+  const temp = parseFloat($('temp').value);
+  if (!isNaN(temp)) settings.temp = Math.max(0, Math.min(2, temp));
+  settings.think = $('think').value || 'medium';
   localStorage.setItem('oc_server', settings.server);
   localStorage.setItem('oc_model', settings.model);
+  localStorage.setItem('oc_ctx', String(settings.ctx));
+  localStorage.setItem('oc_temp', String(settings.temp));
+  localStorage.setItem('oc_think', settings.think);
   $('settings').classList.remove('open');
   renderAll();
 });
