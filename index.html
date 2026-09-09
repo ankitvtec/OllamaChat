@@ -136,7 +136,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .code-output .err-line{color:#F87171;}
 .att-img{max-width:240px;max-height:240px;border-radius:10px;display:block;margin:4px 0;cursor:pointer;}
 .file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:12.5px;margin:4px 4px 4px 0;}
-.err{color:#B3402A;}
+.err{color:#B3402A;white-space:pre-wrap;word-break:break-word;}
 .cursor{display:inline-block;width:8px;height:16px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(1) infinite;border-radius:2px;}
 @keyframes blink{50%{opacity:0;}}
 
@@ -1158,6 +1158,14 @@ function renderThink(el, thinking, running) {
   tdiv.innerHTML = thinkHtml(thinking, running);
 }
 
+function netErrMsg(e) {
+  if (e instanceof TypeError || /failed to fetch|load failed|networkerror|network request failed/i.test((e && e.message) || '')) {
+    const srv = settings.server.replace(/\/+$/, '');
+    return 'Cannot reach Ollama at ' + srv + '.\n\nThis is a network/CORS error (no response was received). Check:\n1. Ollama is running on that machine with OLLAMA_HOST=0.0.0.0:11434\n2. OLLAMA_ORIGINS allows this page \u2014 set OLLAMA_ORIGINS=* (or this page\'s origin)\n3. The address/port is correct and reachable (use the Tailscale IP, not the LAN IP)\n4. No firewall is blocking port 11434';
+  }
+  return (e && e.message) || String(e);
+}
+
 async function streamOnce(apiMsgs, useTools, el) {
   const body = { model: settings.model, messages: apiMsgs, stream: true, keep_alive: '10m' };
   body.options = modelOptions();
@@ -1356,7 +1364,7 @@ async function send() {
     if (err.name === 'AbortError') {
       persist();
     } else {
-      failed = err.message;
+      failed = netErrMsg(err);
       el.querySelector('.content').innerHTML = '<span class="err">&#9888;&#65039; ' + esc(failed) + '</span>';
     }
   } finally {
@@ -1403,7 +1411,7 @@ async function compactConversation() {
     persist();
     renderAll();
   } catch (e) {
-    alert('Compact failed: ' + e.message);
+    alert('Compact failed: ' + netErrMsg(e));
   } finally {
     setStatus('', false);
   }
